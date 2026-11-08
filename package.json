@@ -2,6 +2,23 @@
   "name": "claude-bit",
   "version": "0.1.0",
   "description": "A small Claude Code launcher that puts git worktrees in front of every session.",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "cli",
+    "git",
+    "worktree",
+    "wrapper"
+  ],
+  "homepage": "https://github.com/lewis-wow/claude-bit#readme",
+  "bugs": {
+    "url": "https://github.com/lewis-wow/claude-bit/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lewis-wow/claude-bit.git"
+  },
   "bin": {
     "claude-bit": "./dist/cli.js"
   },

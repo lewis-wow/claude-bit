@@ -3,6 +3,9 @@
 A wrapper around the `claude` CLI that puts a git-worktree picker in front of every session.
 Entry is `src/cli.ts` → `src/app.ts`; the pure decision layer is `src/claude/plan.ts`.
 
+Public repository: <https://github.com/lewis-wow/claude-bit> — see [docs/github.md](docs/github.md) for how it is used, what is
+not set up yet, and what to check before pushing.
+
 ## Conventions
 
 The full set is in [docs/conventions.md](docs/conventions.md) — read it before writing code here.
@@ -41,3 +44,6 @@ npm run schema     # regenerate schema.json after editing src/config/schema.ts
   fail under real Node.
 - The tool runs via `npx` / `pnpm dlx`, so `bin` points at `dist/cli.js`, not at a `.ts` file:
   Node refuses to strip types under `node_modules`.
+- The repository is public and is currently the distribution channel, so a broken `main` breaks
+  `npx github:lewis-wow/claude-bit` for everyone. Use `gh` for repository work; it is already
+  authenticated.

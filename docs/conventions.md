@@ -66,6 +66,8 @@ without needing to be restated.
   the package.
 - `prepare` builds `dist/` before pack, publish and git installs. Keep it working.
 - `files` ships `dist/` and `schema.json` only.
+- The repository (<https://github.com/lewis-wow/claude-bit>) is public and, until the package is published, is itself the
+  distribution channel. See [github.md](github.md).
 
 ## Tooling
 

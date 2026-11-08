@@ -1,5 +1,7 @@
 # claude-bit
 
+[lewis-wow/claude-bit](https://github.com/lewis-wow/claude-bit)
+
 A thin wrapper around the `claude` CLI that puts git worktrees in front of every session.
 
 Run `claude-bit` anywhere inside a repository and it asks which worktree Claude should run in —
@@ -30,11 +32,12 @@ bunx claude-bit           # bun
 
 Arguments pass through, so `npx claude-bit --model opus` works as you would expect.
 
-Until the package is published, the same runners take a git URL, which builds it on the fly:
+Until the package is published, the same runners take the GitHub repository directly, which
+builds it on the fly:
 
 ```sh
-npx github:<owner>/claude-bit
-pnpm dlx github:<owner>/claude-bit
+npx github:lewis-wow/claude-bit
+pnpm dlx github:lewis-wow/claude-bit
 ```
 
 Requires Node 22 or newer.
@@ -52,6 +55,8 @@ npm publish       # add --access public for a scoped name
 
 The name `claude-bit` was unclaimed on npm at the time of writing. Check it is still free, or
 scope it (`@you/claude-bit`), before publishing.
+
+Issues and pull requests go to [https://github.com/lewis-wow/claude-bit](https://github.com/lewis-wow/claude-bit).
 
 ### Installing instead
 
@@ -240,8 +245,10 @@ src/
 
 The decision layer (`plan.ts`, `app.ts`) is pure and injected, so what actually matters — which
 flags Claude receives, in what order — is covered by tests rather than by running the binary.
-[docs/architecture.md](docs/architecture.md) explains why the pieces are split the way they are;
-[docs/verifying.md](docs/verifying.md) covers what the test suite cannot see.
+[docs/architecture.md](docs/architecture.md) explains why the pieces are split the way they are,
+[docs/verifying.md](docs/verifying.md) covers what the test suite cannot see,
+[docs/conventions.md](docs/conventions.md) records the house style, and
+[docs/github.md](docs/github.md) covers the repository itself.
 
 Files are named in camelCase; only folders use kebab-case. Each enum is an `as const` object in
 a file of its own, with a type of the same name merged alongside it. The full set of conventions
