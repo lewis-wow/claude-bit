@@ -69,14 +69,19 @@ without needing to be restated.
 - `files` ships `dist/` and `schema.json` only.
 - Users run the artifact **CI built**, not one built on their machine: the release tarball, via
   `npx <release url>`. CI smoke-tests that exact artifact before it ships.
+- Publishing to npm happens **only from the release workflow**, on a `v*` tag, never from a
+  laptop. The workflow refuses a tag whose version disagrees with `package.json`, because a
+  published version can never be reused.
 - The repository (<https://github.com/lewis-wow/claude-bit>) is public and, until the package is published, is itself the
   distribution channel. See [github.md](github.md).
 
 ## Tooling
 
 - The package manager is **pnpm**, pinned in `packageManager`. Use `pnpm`, never `npm`, for
-  development. The sole exception is the `prepare` script, which runs on a consumer's machine
-  during `npx github:...` where npm is guaranteed to exist and pnpm is not.
+  development. Two places stay on npm, both deliberate: the `prepare` script, which runs on a
+  consumer's machine during `npx github:...` where npm is guaranteed to exist and pnpm is not;
+  and the publish step in the release workflow, because `pnpm publish` has no `--provenance`
+  flag and the published package should carry a provenance attestation.
 - Typecheck with **tsgo**, lint with **oxlint**, format with **oxfmt**, test with **vitest**.
 - `pnpm run check` runs those four plus the build, and must stay green — with no lint warnings,
   not just no errors.

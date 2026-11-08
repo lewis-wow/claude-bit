@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -20,8 +21,18 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+          registry-url: https://registry.npmjs.org
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Refuse a tag that disagrees with the version being published
+        run: |
+          tagged="${GITHUB_REF_NAME#v}"
+          declared="$(node -p 'require("./package.json").version')"
+          if [ "$tagged" != "$declared" ]; then
+            echo "tag $GITHUB_REF_NAME wants $tagged, package.json declares $declared" >&2
+            exit 1
+          fi
 
       - name: Check
         run: pnpm run check
@@ -38,9 +49,18 @@ jobs:
             claude-bit.tgz
           generate_release_notes: true
           body: |
-            Run it straight from this release — no clone, no local build:
+            ```sh
+            npx claude-bit
+            pnpm dlx claude-bit
+            ```
+
+            Or straight from this release, pinned to this exact build:
 
             ```sh
             npx https://github.com/${{ github.repository }}/releases/latest/download/claude-bit.tgz
-            pnpm dlx https://github.com/${{ github.repository }}/releases/latest/download/claude-bit.tgz
             ```
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

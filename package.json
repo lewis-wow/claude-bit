@@ -15,6 +15,7 @@
     "url": "https://github.com/lewis-wow/claude-bit/issues"
   },
   "license": "MIT",
+  "author": "lewis-wow <ludvik.prokopec@gmail.com>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lewis-wow/claude-bit.git"
