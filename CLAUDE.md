@@ -22,10 +22,11 @@ In short, and without exception:
 ## Commands
 
 ```sh
-npm run check      # fmt:check + lint + typecheck + test — must stay green
+npm run check      # fmt:check + lint + typecheck + test + build — must stay green
 npm test           # vitest
 npm run typecheck  # tsgo
 npm run fmt        # oxfmt
+npm run build      # emit dist/ — what the published package runs
 npm run schema     # regenerate schema.json after editing src/config/schema.ts
 ```
 
@@ -35,3 +36,5 @@ npm run schema     # regenerate schema.json after editing src/config/schema.ts
   (`proj/.bare` beside `proj/main`, `proj/feat-x`) must work.
 - `picocolors` is CommonJS — import it by default export. Named imports resolve under vitest but
   fail under real Node.
+- The tool runs via `npx` / `pnpm dlx`, so `bin` points at `dist/cli.js`, not at a `.ts` file:
+  Node refuses to strip types under `node_modules`.

@@ -17,15 +17,59 @@ one, and hands over to `claude` with your own arguments appended.
 └
 ```
 
-## Install
+## Run it
+
+No install step — run it straight from your package manager's runner:
 
 ```sh
-npm install
-npm link        # puts `claude-bit` on your PATH
+npx claude-bit            # npm
+pnpm dlx claude-bit       # pnpm
+yarn dlx claude-bit       # yarn
+bunx claude-bit           # bun
 ```
 
-Requires Node 22.18 or newer — the CLI runs TypeScript directly via Node's type stripping, so
-there is no build step.
+Arguments pass through, so `npx claude-bit --model opus` works as you would expect.
+
+Until the package is published, the same runners take a git URL, which builds it on the fly:
+
+```sh
+npx github:<owner>/claude-bit
+pnpm dlx github:<owner>/claude-bit
+```
+
+Requires Node 22 or newer.
+
+### Publishing
+
+`npx claude-bit` only resolves once the package is on a registry. The package is ready for it —
+`prepare` builds `dist/` before `npm pack` and `npm publish`, and `files` ships `dist/` and
+`schema.json` and nothing else. Publishing is a deliberate, public step, so it is left to you:
+
+```sh
+npm run check     # fmt, lint, typecheck, test, build
+npm publish       # add --access public for a scoped name
+```
+
+The name `claude-bit` was unclaimed on npm at the time of writing. Check it is still free, or
+scope it (`@you/claude-bit`), before publishing.
+
+### Installing instead
+
+```sh
+npm install -g claude-bit   # from the registry
+npm install && npm link     # from a clone, for development
+```
+
+### From a clone
+
+```sh
+npm install     # `prepare` builds dist/ automatically
+npm run check   # fmt, lint, typecheck, test, build
+```
+
+Running the TypeScript entry point directly (`node src/cli.ts`) additionally needs Node 22.18 or
+newer, which is where type stripping arrived. The published package does not — it ships compiled
+JavaScript, because Node refuses to strip types for files under `node_modules`.
 
 ## How it decides
 
@@ -170,10 +214,11 @@ is in [docs/conventions.md](docs/conventions.md).
 ## Development
 
 ```sh
-npm run check        # format, lint, typecheck, test
+npm run check        # format, lint, typecheck, test, build
 npm test             # vitest
 npm run typecheck    # tsgo (TypeScript's native port)
 npm run lint         # oxlint
 npm run fmt          # oxfmt
+npm run build        # emit dist/ — what the published package runs
 npm run schema       # regenerate schema.json after editing config/schema.ts
 ```

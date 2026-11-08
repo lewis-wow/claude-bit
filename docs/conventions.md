@@ -52,10 +52,20 @@ without needing to be restated.
 - Everything must be configurable **per project**, through one simple config file.
 - Defaults belong in the schema, so a project only writes down what it changes.
 
+## Distribution
+
+- The tool is meant to be run through a package runner — `npx`, `pnpm dlx`, `yarn dlx`, `bunx` —
+  not installed globally or linked by hand.
+- `bin` must point at compiled JavaScript in `dist/`, never at a `.ts` file: Node refuses to strip
+  types for files under `node_modules`, so a TypeScript entry point fails for anyone who installs
+  the package.
+- `prepare` builds `dist/` before pack, publish and git installs. Keep it working.
+- `files` ships `dist/` and `schema.json` only.
+
 ## Tooling
 
 - Typecheck with **tsgo**, lint with **oxlint**, format with **oxfmt**, test with **vitest**.
-- `npm run check` runs all four and must stay green.
+- `npm run check` runs those four plus the build, and must stay green.
 
 ## Architecture
 
