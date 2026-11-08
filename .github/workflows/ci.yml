@@ -53,6 +53,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Take package.json alone, so pnpm reads its pinned version from packageManager
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: package.json
+          sparse-checkout-cone-mode: false
+
       - uses: actions/download-artifact@v8
         with:
           name: claude-bit-package
