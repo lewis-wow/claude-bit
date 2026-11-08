@@ -22,5 +22,6 @@
   },
   "terminal.integrated.env.windows": {
     "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN": "1"
-  }
+  },
+  "terminal.integrated.tabs.title": "${sequence}${separator}${process}"
 }
