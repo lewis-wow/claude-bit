@@ -6,6 +6,9 @@ Entry is `src/cli.ts` → `src/app.ts`; the pure decision layer is `src/claude/p
 ## Conventions
 
 The full set is in [docs/conventions.md](docs/conventions.md) — read it before writing code here.
+[docs/architecture.md](docs/architecture.md) carries the rationale the no-comments rule keeps out
+of the source, and [docs/verifying.md](docs/verifying.md) is the checklist for changes, because a
+green `npm run check` has repeatedly not meant a working tool.
 
 @docs/conventions.md
 
