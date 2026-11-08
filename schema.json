@@ -1,5 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unpkg.com/claude-bit/schema.json",
+  "title": "claude-bit configuration",
   "type": "object",
   "properties": {
     "$schema": {
@@ -85,7 +87,8 @@
           }
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "How the worktree picker looks and when it appears."
     },
     "worktree": {
       "default": {},
@@ -105,7 +108,8 @@
           }
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "How new worktrees are created."
     },
     "terminal": {
       "default": {},
@@ -122,9 +126,9 @@
           "type": ["string", "null"]
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "How this session is named, in the window title and in Claude itself."
     }
   },
-  "additionalProperties": false,
-  "title": "claude-bit configuration"
+  "additionalProperties": false
 }

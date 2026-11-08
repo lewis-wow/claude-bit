@@ -63,9 +63,13 @@ npm install && npm link     # from a clone, for development
 ### From a clone
 
 ```sh
+nvm use         # or `fnm use` — picks the version in .nvmrc
 npm install     # `prepare` builds dist/ automatically
 npm run check   # fmt, lint, typecheck, test, build
 ```
+
+`.nvmrc` pins Node 26, the current Active LTS ("Lithium"). The test suite and build are verified
+on both 26 and 24.
 
 Running the TypeScript entry point directly (`node src/cli.ts`) additionally needs Node 22.18 or
 newer, which is where type stripping arrived. The published package does not — it ships compiled
@@ -94,7 +98,7 @@ above your working directory — normally the repository root:
 
 ```json
 {
-  "$schema": "./node_modules/claude-bit/schema.json",
+  "$schema": "https://unpkg.com/claude-bit/schema.json",
   "args": ["--dangerously-skip-permissions"],
   "terminal": {
     "title": "{repo}/{worktree} · {branch}"
@@ -141,9 +145,39 @@ so a typo never passes silently.
 Both templates understand `{worktree}`, `{branch}`, `{repo}` and `{path}`. A token with no value
 disappears along with the separator beside it, so a detached worktree reads `api`, not `api · `.
 
-`schema.json` is generated from the same schema that validates your file (`npm run schema`), so
-an editor pointed at it will complete and check every key. Each file is validated on its own
-before the layers are merged, so an error names the file that actually contains the bad value.
+Each file is validated on its own before the layers are merged, so an error names the file that
+actually contains the bad value.
+
+### JSON schema
+
+`schema.json` is generated from the very same schema that validates your config at runtime
+(`npm run schema`), so the two can never drift. Point your editor at it with a `$schema` key and
+you get completion, inline descriptions, defaults and validation for every option:
+
+```json
+{ "$schema": "https://unpkg.com/claude-bit/schema.json" }
+```
+
+That URL resolves once the package is published; `https://cdn.jsdelivr.net/npm/claude-bit/schema.json`
+serves the same file. If you installed the package rather than using `npx`, you can point at the
+local copy instead — `./node_modules/claude-bit/schema.json` — which works offline. Pin a version
+by adding one: `https://unpkg.com/claude-bit@0.1.0/schema.json`.
+
+VS Code users can skip the `$schema` key entirely and map it once in `.vscode/settings.json`:
+
+```json
+{
+  "json.schemas": [
+    {
+      "fileMatch": ["claude-bit.json", ".claude-bit.json"],
+      "url": "https://unpkg.com/claude-bit/schema.json"
+    }
+  ]
+}
+```
+
+The schema ships inside the published package, so it is versioned alongside the code that reads
+it.
 
 ## Repository layouts
 

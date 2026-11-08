@@ -16,6 +16,7 @@
     "unicorn/no-process-exit": "off",
     "unicorn/no-array-callback-reference": "off",
     "unicorn/no-useless-undefined": "off",
+    "no-redeclare": "off",
     "oxc/no-map-spread": "off",
     "typescript/consistent-type-imports": [
       "error",

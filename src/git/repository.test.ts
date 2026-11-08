@@ -102,16 +102,16 @@ describe('findEnclosingWorktree', () => {
   });
 });
 
+const gitWithoutCommitDetails = (args: string[]) => {
+  if (args[0] === 'rev-parse') return '/repo/.git';
+  if (args[0] === 'worktree') return WORKTREE_LIST;
+
+  throw new Error('fatal: bad object');
+};
+
 describe('openRepository when commit details are unavailable', () => {
   it('still lists worktrees when git show fails', () => {
-    const git = (args: string[]) => {
-      if (args[0] === 'rev-parse') return '/repo/.git';
-      if (args[0] === 'worktree') return WORKTREE_LIST;
-
-      throw new Error('fatal: bad object');
-    };
-
-    const repository = openRepository({ git, cwd: '/repo' });
+    const repository = openRepository({ git: gitWithoutCommitDetails, cwd: '/repo' });
 
     expect(repository?.worktrees).toHaveLength(3);
     expect(repository?.worktrees.every((worktree) => worktree.commit === undefined)).toBe(true);

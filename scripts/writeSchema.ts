@@ -7,9 +7,15 @@ import { configSchema } from '../src/config/schema.ts';
 
 const outputPath = join(import.meta.dirname, '..', 'schema.json');
 
+const SCHEMA_ID = 'https://unpkg.com/claude-bit/schema.json';
+
+const { $schema, ...generated } = z.toJSONSchema(configSchema, { io: 'input' });
+
 const jsonSchema = {
-  ...z.toJSONSchema(configSchema, { io: 'input' }),
+  $schema,
+  $id: SCHEMA_ID,
   title: 'claude-bit configuration',
+  ...generated,
 };
 
 writeFileSync(outputPath, `${JSON.stringify(jsonSchema, undefined, 2)}\n`);

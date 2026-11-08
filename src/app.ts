@@ -54,11 +54,7 @@ const implicitTarget = (repository: Repository, enclosing: Worktree | undefined)
 
 const withSessionState = (
   target: LaunchTarget,
-  {
-    config,
-    hasSession,
-    passesThrough,
-  }: { config: Config; hasSession: SessionLookup; passesThrough: boolean },
+  { config, hasSession, passesThrough }: SessionState,
 ): LaunchTarget =>
   target.kind === TargetKind.New
     ? target
@@ -66,6 +62,31 @@ const withSessionState = (
         ...target,
         hasStoredSession: !passesThrough && hasSession(target.path, sessionsDirectoryFor(config)),
       };
+
+type SessionState = { config: Config; hasSession: SessionLookup; passesThrough: boolean };
+
+const launchOutsideRepository = ({
+  config,
+  cwd,
+  forwardedArgs,
+  sessionState,
+}: {
+  config: Config;
+  cwd: string;
+  forwardedArgs: readonly string[];
+  sessionState: SessionState;
+}): Resolution => ({
+  kind: ResolutionKind.Launch,
+  launch: planLaunch({
+    config,
+    repository: { root: cwd, directory: cwd },
+    target: withSessionState(
+      { kind: TargetKind.Existing, path: cwd, branch: undefined, hasStoredSession: false },
+      sessionState,
+    ),
+    forwardedArgs,
+  }),
+});
 
 export const resolveLaunch = async (
   { argv, cwd, isInteractive }: RunOptions,
@@ -88,20 +109,7 @@ export const resolveLaunch = async (
   const sessionState = { config, hasSession, passesThrough };
 
   if (repository === undefined) {
-    const target = withSessionState(
-      { kind: TargetKind.Existing, path: cwd, branch: undefined, hasStoredSession: false },
-      sessionState,
-    );
-
-    return {
-      kind: ResolutionKind.Launch,
-      launch: planLaunch({
-        config,
-        repository: { root: cwd, directory: cwd },
-        target,
-        forwardedArgs: argv,
-      }),
-    };
+    return launchOutsideRepository({ config, cwd, forwardedArgs: argv, sessionState });
   }
 
   const chosen = canPrompt

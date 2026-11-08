@@ -36,6 +36,7 @@ const pickerSchema = z
       ])
       .describe('Arguments that mean the caller already chose a session, so the picker is skipped.'),
   })
+  .describe('How the worktree picker looks and when it appears.')
   .prefault({});
 
 const worktreeSchema = z
@@ -46,6 +47,7 @@ const worktreeSchema = z
       .default([])
       .describe('Extra arguments used only when creating a worktree, e.g. ["--tmux"].'),
   })
+  .describe('How new worktrees are created.')
   .prefault({});
 
 const terminalSchema = z
@@ -56,6 +58,7 @@ const terminalSchema = z
       'Value passed to `claude --name`, which names the session and the title Claude maintains.',
     ),
   })
+  .describe('How this session is named, in the window title and in Claude itself.')
   .prefault({});
 
 export const configSchema = z.strictObject({

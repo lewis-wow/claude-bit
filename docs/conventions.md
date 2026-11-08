@@ -51,6 +51,11 @@ without needing to be restated.
 
 - Everything must be configurable **per project**, through one simple config file.
 - Defaults belong in the schema, so a project only writes down what it changes.
+- The config must have a **JSON schema**, generated from the same definition that validates it at
+  runtime (`npm run schema`) so the two cannot drift. Never hand-maintain `schema.json`.
+- Every option carries a `.describe()`, because that text becomes the editor tooltip.
+- The schema ships in the published package and is referenced by URL, since `npx` users have no
+  `node_modules` to point at.
 
 ## Distribution
 
@@ -65,7 +70,10 @@ without needing to be restated.
 ## Tooling
 
 - Typecheck with **tsgo**, lint with **oxlint**, format with **oxfmt**, test with **vitest**.
-- `npm run check` runs those four plus the build, and must stay green.
+- `npm run check` runs those four plus the build, and must stay green — with no lint warnings,
+  not just no errors.
+- `.nvmrc` tracks the current Node **Active LTS**. `engines` stays at the lowest version actually
+  supported, which is lower.
 
 ## Architecture
 

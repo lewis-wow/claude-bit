@@ -24,6 +24,16 @@ const toTarget = (worktree: Worktree): LaunchTarget => ({
   hasStoredSession: false,
 });
 
+const promptForNewWorktree = async (config: Config): Promise<LaunchTarget | undefined> => {
+  const name = await text({
+    message: 'New worktree name',
+    placeholder: config.worktree.namePlaceholder,
+    validate: (value) => ((value ?? '').trim().length === 0 ? 'Name is required' : undefined),
+  });
+
+  return isCancel(name) ? undefined : { kind: TargetKind.New, name: name.trim() };
+};
+
 export const pickTarget = async ({
   repository,
   config,
@@ -69,11 +79,5 @@ export const pickTarget = async ({
     return toTarget(chosen);
   }
 
-  const name = await text({
-    message: 'New worktree name',
-    placeholder: config.worktree.namePlaceholder,
-    validate: (value) => ((value ?? '').trim().length === 0 ? 'Name is required' : undefined),
-  });
-
-  return isCancel(name) ? undefined : { kind: TargetKind.New, name: name.trim() };
+  return promptForNewWorktree(config);
 };
