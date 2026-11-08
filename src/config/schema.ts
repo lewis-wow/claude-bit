@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-import { ColorMode } from '../terminal/color-mode.ts';
-import { TITLE_TOKENS } from '../terminal/title-token.ts';
+import { ColorMode } from '../terminal/colorMode.ts';
+import { TITLE_TOKENS } from '../terminal/titleToken.ts';
 
 const TOKEN_LIST = TITLE_TOKENS.map((token) => `{${token}}`).join(' ');
 

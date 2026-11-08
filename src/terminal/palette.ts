@@ -1,6 +1,6 @@
 import pico from 'picocolors';
 
-import { ColorMode } from './color-mode.ts';
+import { ColorMode } from './colorMode.ts';
 
 export type Palette = {
   accent: (value: string) => string;

@@ -19,7 +19,7 @@
     "fmt:check": "oxfmt --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "schema": "node scripts/write-schema.ts && oxfmt schema.json",
+    "schema": "node scripts/writeSchema.ts && oxfmt schema.json",
     "check": "npm run fmt:check && npm run lint && npm run typecheck && npm run test"
   },
   "dependencies": {

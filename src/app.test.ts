@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { resolveLaunch } from './app.ts';
 import type { Dependencies, RunOptions } from './app.ts';
-import { TargetKind } from './claude/target-kind.ts';
+import { TargetKind } from './claude/targetKind.ts';
 import { defaultConfig } from './config/schema.ts';
 import type { Config } from './config/schema.ts';
 import { COMMIT_FIELD_SEPARATOR } from './git/porcelain.ts';
-import { ResolutionKind } from './resolution-kind.ts';
+import { ResolutionKind } from './resolutionKind.ts';
 
 const WORKTREE_LIST = [
   'worktree /repo\nHEAD aaa\nbranch refs/heads/main\n',

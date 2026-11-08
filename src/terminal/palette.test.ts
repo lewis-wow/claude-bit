@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ColorMode } from './color-mode.ts';
+import { ColorMode } from './colorMode.ts';
 import { createPalette, shouldUseColor } from './palette.ts';
 
 describe('shouldUseColor', () => {

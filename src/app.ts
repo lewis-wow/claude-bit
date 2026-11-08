@@ -1,14 +1,14 @@
 import { planLaunch, usesPassthroughFlag } from './claude/plan.ts';
 import type { Launch, LaunchTarget } from './claude/plan.ts';
 import { defaultSessionsDirectory, expandHome, hasStoredSession } from './claude/sessions.ts';
-import { TargetKind } from './claude/target-kind.ts';
+import { TargetKind } from './claude/targetKind.ts';
 import { loadConfig } from './config/load.ts';
 import type { Config } from './config/schema.ts';
 import { runGit } from './git/git.ts';
 import type { GitRunner } from './git/git.ts';
 import { findEnclosingWorktree, openRepository } from './git/repository.ts';
 import type { Repository, Worktree } from './git/repository.ts';
-import { ResolutionKind } from './resolution-kind.ts';
+import { ResolutionKind } from './resolutionKind.ts';
 import { createPalette } from './terminal/palette.ts';
 import { pickTarget } from './ui/picker.ts';
 

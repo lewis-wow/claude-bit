@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { defaultConfig } from '../config/schema.ts';
 import type { Config } from '../config/schema.ts';
 import { planLaunch, usesPassthroughFlag } from './plan.ts';
-import { TargetKind } from './target-kind.ts';
+import { TargetKind } from './targetKind.ts';
 
 const config = (overrides: Partial<Config> = {}): Config => ({ ...defaultConfig(), ...overrides });
 

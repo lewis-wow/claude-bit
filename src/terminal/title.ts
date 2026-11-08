@@ -1,7 +1,7 @@
 import type { Writable } from 'node:stream';
 
-import { TITLE_TOKENS } from './title-token.ts';
-import type { TitleToken } from './title-token.ts';
+import { TITLE_TOKENS } from './titleToken.ts';
+import type { TitleToken } from './titleToken.ts';
 
 export type TitleTokens = Partial<Record<TitleToken, string | undefined>>;
 

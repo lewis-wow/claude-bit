@@ -1,7 +1,7 @@
 import { isCancel, select, text } from '@clack/prompts';
 
 import type { LaunchTarget } from '../claude/plan.ts';
-import { TargetKind } from '../claude/target-kind.ts';
+import { TargetKind } from '../claude/targetKind.ts';
 import type { Config } from '../config/schema.ts';
 import { findEnclosingWorktree } from '../git/repository.ts';
 import type { Repository, Worktree } from '../git/repository.ts';

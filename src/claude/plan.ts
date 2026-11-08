@@ -3,7 +3,7 @@ import { basename } from 'node:path';
 import type { Config } from '../config/schema.ts';
 import { renderTitleTemplate } from '../terminal/title.ts';
 import type { TitleTokens } from '../terminal/title.ts';
-import { TargetKind } from './target-kind.ts';
+import { TargetKind } from './targetKind.ts';
 
 export type LaunchTarget =
   | {

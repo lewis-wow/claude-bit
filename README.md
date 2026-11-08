@@ -134,30 +134,37 @@ to `null` if you would rather Claude named the session itself.
 
 ```
 src/
-  cli.ts            entry point: process in, exit status out
-  app.ts            the flow — find repo, load config, choose worktree, plan launch
+  cli.ts             entry point: process in, exit status out
+  app.ts             the flow — find repo, load config, choose worktree, plan launch
+  resolutionKind.ts  Launch | Cancelled
   claude/
-    plan.ts         pure: target + config → the exact command to run
-    launcher.ts     spawns it and mirrors the child's exit status
-    sessions.ts     whether a directory already has a stored conversation
+    plan.ts          pure: target + config → the exact command to run
+    launcher.ts      spawns it and mirrors the child's exit status
+    sessions.ts      whether a directory already has a stored conversation
+    targetKind.ts    Existing | New
   config/
-    schema.ts       the config contract, and the source of schema.json
-    merge.ts        how layers combine
-    load.ts         discovery, layering, validation
+    schema.ts        the config contract, and the source of schema.json
+    merge.ts         how layers combine
+    load.ts          discovery, layering, validation
   git/
-    git.ts          the git runner, injectable so nothing needs a real repo to test
-    porcelain.ts    pure parsers for git's machine-readable output
-    repository.ts   worktrees, ordered the way the picker wants them
+    git.ts           the git runner, injectable so nothing needs a real repo to test
+    porcelain.ts     pure parsers for git's machine-readable output
+    repository.ts    worktrees, ordered the way the picker wants them
   terminal/
-    palette.ts      colour roles, backed by picocolors
-    title.ts        title templates and the escape sequence that carries them
+    palette.ts       colour roles, backed by picocolors
+    title.ts         title templates and the escape sequence that carries them
+    colorMode.ts     Auto | Always | Never
+    titleToken.ts    Worktree | Branch | Repo | Path
   ui/
-    picker.ts       the interactive chooser
-    labels.ts       how a worktree reads in the list
+    picker.ts        the interactive chooser
+    labels.ts        how a worktree reads in the list
 ```
 
 The decision layer (`plan.ts`, `app.ts`) is pure and injected, so what actually matters — which
 flags Claude receives, in what order — is covered by tests rather than by running the binary.
+
+Files are named in camelCase; only folders use kebab-case. Each enum is an `as const` object in
+a file of its own, with a type of the same name merged alongside it.
 
 ## Development
 
