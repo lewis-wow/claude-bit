@@ -7,15 +7,6 @@ import type { Repository, Worktree } from '../git/repository.ts';
 import type { Palette } from '../terminal/palette.ts';
 import { worktreeLabel } from './labels.ts';
 
-/**
- * The interactive worktree chooser.
- *
- * It answers one question — which worktree should Claude run in — and returns
- * a `LaunchTarget`. Cancelling returns `undefined`; deciding what that means
- * for the process is the caller's job.
- */
-
-/** Sentinel used as the value of the "create a worktree" entry. */
 const CREATE_NEW_WORKTREE = Symbol('create-new-worktree');
 
 type PickTargetOptions = {
@@ -70,9 +61,6 @@ export const pickTarget = async ({
   if (selection !== CREATE_NEW_WORKTREE) {
     const chosen = repository.worktrees.find((worktree) => worktree.path === selection);
 
-    // Every option was built from this list, so a miss means the two have
-    // drifted apart. Reporting it as a cancellation would hide a real bug
-    // behind the exit status of a deliberate Ctrl-C.
     if (chosen === undefined) {
       throw new Error(`Selected worktree is no longer listed: ${selection}`);
     }

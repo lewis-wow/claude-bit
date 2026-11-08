@@ -1,19 +1,9 @@
 import { z } from 'zod';
 
-/**
- * The `claude-bit.json` contract.
- *
- * Every field has a default, so a project only writes down what it wants to
- * change. The schema is the single source of truth: it validates user files,
- * documents the options, and generates `schema.json` for editor completion.
- */
-
-/** Placeholders accepted by `terminal.title` and `terminal.sessionName`. */
 export const TITLE_TOKENS = ['worktree', 'branch', 'repo', 'path'] as const;
 
 const TOKEN_LIST = TITLE_TOKENS.map((token) => `{${token}}`).join(' ');
 
-/** A template that renders `{token}` placeholders, or null to turn the feature off. */
 const titleTemplate = (fallback: string, purpose: string) =>
   z.string().nullable().default(fallback).describe(`${purpose} Null disables it. Tokens: ${TOKEN_LIST}`);
 

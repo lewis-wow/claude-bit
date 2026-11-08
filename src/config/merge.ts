@@ -1,11 +1,3 @@
-/**
- * Layering rules for configuration files.
- *
- * Objects merge key by key so a project file can override one nested option
- * without restating its siblings. Arrays replace wholesale, because a list
- * like `args` is a complete statement of intent, not something to append to.
- */
-
 type PlainObject = Record<string, unknown>;
 
 const isPlainObject = (value: unknown): value is PlainObject =>
@@ -26,6 +18,5 @@ const mergeTwo = (base: PlainObject, override: PlainObject): PlainObject => {
   return merged;
 };
 
-/** Merges layers left to right, so later layers win. */
 export const mergeConfigLayers = (...layers: readonly unknown[]): PlainObject =>
   layers.filter(isPlainObject).reduce<PlainObject>(mergeTwo, {});

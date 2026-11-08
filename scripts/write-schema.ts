@@ -5,8 +5,6 @@ import { z } from 'zod';
 
 import { configSchema } from '../src/config/schema.ts';
 
-/** Regenerates `schema.json` so editors can complete and validate `claude-bit.json`. */
-
 const outputPath = join(import.meta.dirname, '..', 'schema.json');
 
 const jsonSchema = {

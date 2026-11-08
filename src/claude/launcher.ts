@@ -4,15 +4,6 @@ import { constants } from 'node:os';
 import { setTerminalTitle } from '../terminal/title.ts';
 import type { Launch } from './plan.ts';
 
-/**
- * The one place that touches the real process table.
- *
- * Everything interesting about a launch was already decided in `planLaunch`;
- * this just carries it out and makes the wrapper transparent to the shell by
- * reproducing the child's exit status.
- */
-
-/** POSIX convention: a process killed by signal N reports status 128 + N. */
 const SIGNAL_EXIT_CODE_BASE = 128;
 
 const exitCodeFor = (code: number | null, signal: NodeJS.Signals | null) => {

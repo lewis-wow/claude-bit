@@ -3,11 +3,6 @@ import { basename } from 'node:path';
 import type { Worktree } from '../git/repository.ts';
 import type { Palette } from '../terminal/palette.ts';
 
-/**
- * How a worktree reads in the picker: its directory name, then the details
- * that help tell two similar worktrees apart.
- */
-
 const DETAIL_SEPARATOR = ' · ';
 
 export const worktreeDetails = (worktree: Worktree): string[] =>

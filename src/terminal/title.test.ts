@@ -42,11 +42,11 @@ describe('renderTitleTemplate', () => {
 
 describe('terminalTitleSequence', () => {
   it('wraps the title in an OSC 0 sequence', () => {
-    expect(terminalTitleSequence('api')).toBe(']0;api');
+    expect(terminalTitleSequence('api')).toBe('\u001B]0;api\u0007');
   });
 
   it('strips control characters that would break the sequence', () => {
-    expect(terminalTitleSequence('abc')).toBe(']0;abc');
+    expect(terminalTitleSequence('a\u0007b\u001Bc')).toBe('\u001B]0;abc\u0007');
   });
 });
 

@@ -5,23 +5,13 @@ import { COMMIT_FORMAT, parseCommitSummaries, parseWorktreeList } from './porcel
 import type { CommitSummary, WorktreeRecord } from './porcelain.ts';
 
 export type Worktree = WorktreeRecord & {
-  /** True for the repository's original checkout, false for linked worktrees. */
   isMainCheckout: boolean;
-  /** Commit details for `head`, absent for a bare or unborn checkout. */
   commit: CommitSummary | undefined;
 };
 
 export type Repository = {
-  /**
-   * Identifies the repository: the directory holding the git common directory.
-   * That is the main checkout in the usual layout, but in the increasingly
-   * common bare layout (`proj/.bare` beside `proj/main`, `proj/feat-x`) it is
-   * `proj`, which is not a worktree at all — so never run anything here.
-   */
   directory: string;
-  /** A real worktree to run `claude --worktree` from. */
   root: string;
-  /** Main checkout first when there is one, then the rest by most recent commit. */
   worktrees: Worktree[];
 };
 
@@ -33,10 +23,6 @@ type OpenRepositoryOptions = {
 const readRepositoryDirectory = (git: GitRunner, cwd: string) =>
   dirname(git(['rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd }));
 
-/**
- * Commit details are decoration — they make the picker readable but nothing
- * depends on them, so a repository git cannot describe still works.
- */
 const readCommitSummaries = (git: GitRunner, cwd: string, heads: string[]) => {
   const revisions = [...new Set(heads.filter(Boolean))];
 
@@ -54,10 +40,6 @@ const readCommitSummaries = (git: GitRunner, cwd: string, heads: string[]) => {
 const byMostRecentCommit = (a: Worktree, b: Worktree) =>
   (b.commit?.committedAt ?? 0) - (a.commit?.committedAt ?? 0);
 
-/**
- * Describes the git repository containing `cwd`, or `undefined` when there
- * is none. Worktrees come back in the order the picker should show them.
- */
 export const openRepository = ({ git, cwd }: OpenRepositoryOptions): Repository | undefined => {
   let directory: string;
   let records: WorktreeRecord[];
@@ -69,7 +51,6 @@ export const openRepository = ({ git, cwd }: OpenRepositoryOptions): Repository 
     return undefined;
   }
 
-  // The bare repository has no working tree, so it is not somewhere to run.
   const checkouts = records.filter((record) => !record.isBare);
 
   const commits = readCommitSummaries(
@@ -80,8 +61,6 @@ export const openRepository = ({ git, cwd }: OpenRepositoryOptions): Repository 
 
   const worktrees = checkouts.map((record) => ({
     ...record,
-    // In a bare layout `directory` matches no worktree, so nothing is marked —
-    // which is correct: such a repository has no main checkout.
     isMainCheckout: resolve(record.path) === resolve(directory),
     commit: commits.get(record.head),
   }));
@@ -96,10 +75,6 @@ export const openRepository = ({ git, cwd }: OpenRepositoryOptions): Repository 
 const contains = (directory: string, candidate: string) =>
   candidate === directory || candidate.startsWith(directory + sep);
 
-/**
- * Finds the worktree the given directory sits inside, preferring the deepest
- * match so a worktree nested under another one still wins.
- */
 export const findEnclosingWorktree = <T extends { path: string }>(
   worktrees: readonly T[],
   cwd: string,
