@@ -21,25 +21,23 @@ one, and hands over to `claude` with your own arguments appended.
 
 ## Run it
 
-No install step — run the artifact CI built and attached to the latest release:
+No install step — run it straight from your package manager's runner:
 
 ```sh
-npx https://github.com/lewis-wow/claude-bit/releases/latest/download/claude-bit.tgz
-pnpm dlx https://github.com/lewis-wow/claude-bit/releases/latest/download/claude-bit.tgz
+npx @lewis_wow/claude-bit            # npm
+pnpm dlx @lewis_wow/claude-bit       # pnpm
+yarn dlx @lewis_wow/claude-bit       # yarn
+bunx @lewis_wow/claude-bit           # bun
 ```
-
-That tarball is produced by the [Release workflow](.github/workflows/release.yml): checked,
-built and packed on CI, never on your machine. Nothing is compiled locally.
 
 Arguments pass through, so appending `--model opus` works as you would expect.
 
-Once the package is published to npm, the short form works too:
+The published package is the artifact CI built — checked, packed and smoke-tested by the
+[Release workflow](.github/workflows/release.yml), never built on your machine. To pin one exact
+build instead of tracking the latest, point a runner at the release tarball:
 
 ```sh
-npx claude-bit            # npm
-pnpm dlx claude-bit       # pnpm
-yarn dlx claude-bit       # yarn
-bunx claude-bit           # bun
+npx https://github.com/lewis-wow/claude-bit/releases/latest/download/claude-bit.tgz
 ```
 
 To run unreleased code from `main`, point a runner at the repository instead. This one _does_
@@ -54,25 +52,27 @@ Requires Node 22 or newer.
 
 ### Publishing
 
-`npx claude-bit` only resolves once the package is on a registry. The package is ready for it —
-`prepare` builds `dist/` before `npm pack` and `npm publish`, and `files` ships `dist/` and
-`schema.json` and nothing else. Publishing is a deliberate, public step, so it is left to you:
+Publishing happens on CI, never from a laptop. Tagging a version is the whole release:
 
 ```sh
-pnpm run check    # fmt, lint, typecheck, test, build
-pnpm publish      # add --access public for a scoped name
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
-The name `claude-bit` was unclaimed on npm at the time of writing. Check it is still free, or
-scope it (`@you/claude-bit`), before publishing.
+The [Release workflow](.github/workflows/release.yml) then refuses a tag that disagrees with the
+version in `package.json`, runs the full check, packs, creates the GitHub release and publishes
+to npm with a provenance attestation tying the package to that workflow run.
+
+The package is published under the `@lewis_wow` scope, which is why `--access public` is part of
+the publish step: npm makes scoped packages private by default.
 
 Issues and pull requests go to [https://github.com/lewis-wow/claude-bit](https://github.com/lewis-wow/claude-bit).
 
 ### Installing instead
 
 ```sh
-pnpm add -g claude-bit       # from the registry
-pnpm install && pnpm link -g # from a clone, for development
+pnpm add -g @lewis_wow/claude-bit  # from the registry
+pnpm install && pnpm link -g       # from a clone, for development
 ```
 
 ### From a clone

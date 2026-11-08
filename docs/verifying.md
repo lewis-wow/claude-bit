@@ -91,7 +91,7 @@ The published package is not the repository. Test what a user actually gets:
 
 ```sh
 npm pack --pack-destination /tmp/pack
-cd /tmp/consumer && npm init -y && npm install /tmp/pack/claude-bit-*.tgz
+cd /tmp/consumer && npm init -y && npm install /tmp/pack/*.tgz
 ./node_modules/.bin/claude-bit        # must run from node_modules
 ```
 
@@ -103,7 +103,7 @@ a closer check; `npx git+file:///path/to/repo` additionally exercises
 Confirm the tarball carries `dist/` and `schema.json` and nothing else:
 
 ```sh
-tar -tzf /tmp/pack/claude-bit-*.tgz
+tar -tzf /tmp/pack/*.tgz
 ```
 
 ## Node versions

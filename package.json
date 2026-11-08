@@ -1,5 +1,5 @@
 {
-  "name": "claude-bit",
+  "name": "@lewis_wow/claude-bit",
   "version": "0.1.0",
   "description": "A small Claude Code launcher that puts git worktrees in front of every session.",
   "keywords": [

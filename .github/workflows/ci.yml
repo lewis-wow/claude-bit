@@ -39,8 +39,8 @@ jobs:
 
       - name: Pack
         run: |
-          pnpm pack --pack-destination .
-          mv claude-bit-*.tgz claude-bit.tgz
+          tarball="$(pnpm pack --pack-destination . | tail -1)"
+          mv "$tarball" claude-bit.tgz
 
       - uses: actions/upload-artifact@v7
         with:

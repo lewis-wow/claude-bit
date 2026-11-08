@@ -39,19 +39,18 @@ jobs:
 
       - name: Pack
         run: |
-          pnpm pack --pack-destination .
-          cp claude-bit-*.tgz claude-bit.tgz
+          tarball="$(pnpm pack --pack-destination . | tail -1)"
+          cp "$tarball" claude-bit.tgz
 
       - uses: softprops/action-gh-release@v3
         with:
           files: |
-            claude-bit-*.tgz
-            claude-bit.tgz
+            *.tgz
           generate_release_notes: true
           body: |
             ```sh
-            npx claude-bit
-            pnpm dlx claude-bit
+            npx @lewis_wow/claude-bit
+            pnpm dlx @lewis_wow/claude-bit
             ```
 
             Or straight from this release, pinned to this exact build:
