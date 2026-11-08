@@ -1,17 +1,18 @@
 {
   "name": "claude-bit",
   "version": "0.1.0",
-  "private": true,
   "description": "A small Claude Code launcher that puts git worktrees in front of every session.",
   "bin": {
-    "claude-bit": "./src/cli.ts"
+    "claude-bit": "./dist/cli.js"
   },
   "files": [
-    "src",
+    "dist",
     "schema.json"
   ],
   "type": "module",
   "scripts": {
+    "build": "tsgo -p tsconfig.build.json",
+    "prepare": "npm run build",
     "typecheck": "tsgo --noEmit",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
@@ -20,7 +21,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "schema": "node scripts/writeSchema.ts && oxfmt schema.json",
-    "check": "npm run fmt:check && npm run lint && npm run typecheck && npm run test"
+    "check": "npm run fmt:check && npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
     "@clack/prompts": "^1.8.1",
@@ -36,6 +37,6 @@
     "vitest": "^5.1.0"
   },
   "engines": {
-    "node": ">=22.18.0"
+    "node": ">=22.0.0"
   }
 }
