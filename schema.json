@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://unpkg.com/claude-bit/schema.json",
+  "$id": "https://lewis-wow.github.io/claude-bit/schema.json",
   "title": "claude-bit configuration",
   "type": "object",
   "properties": {

@@ -21,7 +21,19 @@ one, and hands over to `claude` with your own arguments appended.
 
 ## Run it
 
-No install step — run it straight from your package manager's runner:
+No install step — run the artifact CI built and attached to the latest release:
+
+```sh
+npx https://github.com/lewis-wow/claude-bit/releases/latest/download/claude-bit.tgz
+pnpm dlx https://github.com/lewis-wow/claude-bit/releases/latest/download/claude-bit.tgz
+```
+
+That tarball is produced by the [Release workflow](.github/workflows/release.yml): checked,
+built and packed on CI, never on your machine. Nothing is compiled locally.
+
+Arguments pass through, so appending `--model opus` works as you would expect.
+
+Once the package is published to npm, the short form works too:
 
 ```sh
 npx claude-bit            # npm
@@ -30,10 +42,8 @@ yarn dlx claude-bit       # yarn
 bunx claude-bit           # bun
 ```
 
-Arguments pass through, so `npx claude-bit --model opus` works as you would expect.
-
-Until the package is published, the same runners take the GitHub repository directly, which
-builds it on the fly:
+To run unreleased code from `main`, point a runner at the repository instead. This one _does_
+build on your machine, via `prepare`:
 
 ```sh
 npx github:lewis-wow/claude-bit
@@ -49,8 +59,8 @@ Requires Node 22 or newer.
 `schema.json` and nothing else. Publishing is a deliberate, public step, so it is left to you:
 
 ```sh
-npm run check     # fmt, lint, typecheck, test, build
-npm publish       # add --access public for a scoped name
+pnpm run check    # fmt, lint, typecheck, test, build
+pnpm publish      # add --access public for a scoped name
 ```
 
 The name `claude-bit` was unclaimed on npm at the time of writing. Check it is still free, or
@@ -61,17 +71,21 @@ Issues and pull requests go to [https://github.com/lewis-wow/claude-bit](https:/
 ### Installing instead
 
 ```sh
-npm install -g claude-bit   # from the registry
-npm install && npm link     # from a clone, for development
+pnpm add -g claude-bit       # from the registry
+pnpm install && pnpm link -g # from a clone, for development
 ```
 
 ### From a clone
 
 ```sh
-nvm use         # or `fnm use` — picks the version in .nvmrc
-npm install     # `prepare` builds dist/ automatically
-npm run check   # fmt, lint, typecheck, test, build
+nvm use          # or `fnm use` — picks the version in .nvmrc
+pnpm install     # `prepare` builds dist/ automatically
+pnpm run check   # fmt, lint, typecheck, test, build
 ```
+
+This project uses **pnpm**, pinned in `packageManager`; `corepack enable` picks up the right
+version. The one script that stays on npm is `prepare`, because it runs on a _consumer's_ machine
+during `npx github:...` and npm ships with Node while pnpm may not be installed there.
 
 `.nvmrc` pins Node 26, the current Active LTS ("Lithium"). The test suite and build are verified
 on both 26 and 24.
@@ -103,7 +117,7 @@ above your working directory — normally the repository root:
 
 ```json
 {
-  "$schema": "https://unpkg.com/claude-bit/schema.json",
+  "$schema": "https://lewis-wow.github.io/claude-bit/schema.json",
   "args": ["--dangerously-skip-permissions"],
   "terminal": {
     "title": "{repo}/{worktree} · {branch}"
@@ -160,13 +174,17 @@ actually contains the bad value.
 you get completion, inline descriptions, defaults and validation for every option:
 
 ```json
-{ "$schema": "https://unpkg.com/claude-bit/schema.json" }
+{ "$schema": "https://lewis-wow.github.io/claude-bit/schema.json" }
 ```
 
-That URL resolves once the package is published; `https://cdn.jsdelivr.net/npm/claude-bit/schema.json`
-serves the same file. If you installed the package rather than using `npx`, you can point at the
-local copy instead — `./node_modules/claude-bit/schema.json` — which works offline. Pin a version
-by adding one: `https://unpkg.com/claude-bit@0.1.0/schema.json`.
+That URL is served from GitHub Pages, redeployed from `main` on every push by the
+[Pages workflow](.github/workflows/pages.yml), which also fails the build if `schema.json` has
+drifted from `src/config/schema.ts`. <https://lewis-wow.github.io/claude-bit/> lists the
+top-level options in a table.
+
+It needs no install and no registry. If you would rather resolve it offline, point at a local
+copy — `./schema.json` in this repository, or `./node_modules/claude-bit/schema.json` once the
+package is installed.
 
 VS Code users can skip the `$schema` key entirely and map it once in `.vscode/settings.json`:
 
@@ -175,7 +193,7 @@ VS Code users can skip the `$schema` key entirely and map it once in `.vscode/se
   "json.schemas": [
     {
       "fileMatch": ["claude-bit.json", ".claude-bit.json"],
-      "url": "https://unpkg.com/claude-bit/schema.json"
+      "url": "https://lewis-wow.github.io/claude-bit/schema.json"
     }
   ]
 }
@@ -257,11 +275,14 @@ is in [docs/conventions.md](docs/conventions.md).
 ## Development
 
 ```sh
-npm run check        # format, lint, typecheck, test, build
-npm test             # vitest
-npm run typecheck    # tsgo (TypeScript's native port)
-npm run lint         # oxlint
-npm run fmt          # oxfmt
-npm run build        # emit dist/ — what the published package runs
-npm run schema       # regenerate schema.json after editing config/schema.ts
+pnpm run check        # format, lint, typecheck, test, build
+pnpm test             # vitest
+pnpm run typecheck    # tsgo (TypeScript's native port)
+pnpm run lint         # oxlint
+pnpm run fmt          # oxfmt
+pnpm run build        # emit dist/ — what the published package runs
+pnpm run schema       # regenerate schema.json after editing config/schema.ts
 ```
+
+Every push and pull request runs the same check on CI, then packs the result and smoke-tests that
+packed artifact in a real worktree — see [.github/workflows/ci.yml](.github/workflows/ci.yml).

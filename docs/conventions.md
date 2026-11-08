@@ -7,7 +7,7 @@ without needing to be restated.
 
 - Name files in **camelCase** — `targetKind.ts`, `writeSchema.ts`. Never `something-something.ts`.
 - Use **kebab-case for folders only**.
-- Two names stay hyphenated because they are not ours to choose: `package-lock.json` (npm owns it)
+- Two names stay hyphenated because they are not ours to choose: `pnpm-lock.yaml` (pnpm owns it)
   and `claude-bit.json` (the config filename users write — part of the public interface, not the
   source layout).
 
@@ -52,10 +52,11 @@ without needing to be restated.
 - Everything must be configurable **per project**, through one simple config file.
 - Defaults belong in the schema, so a project only writes down what it changes.
 - The config must have a **JSON schema**, generated from the same definition that validates it at
-  runtime (`npm run schema`) so the two cannot drift. Never hand-maintain `schema.json`.
+  runtime (`pnpm run schema`) so the two cannot drift. Never hand-maintain `schema.json`.
 - Every option carries a `.describe()`, because that text becomes the editor tooltip.
-- The schema ships in the published package and is referenced by URL, since `npx` users have no
-  `node_modules` to point at.
+- The schema ships in the published package **and** is hosted on GitHub Pages at
+  <https://lewis-wow.github.io/claude-bit/schema.json>, since `npx` users have no `node_modules` to point at. The Pages build fails if the
+  committed `schema.json` is stale.
 
 ## Distribution
 
@@ -66,13 +67,18 @@ without needing to be restated.
   the package.
 - `prepare` builds `dist/` before pack, publish and git installs. Keep it working.
 - `files` ships `dist/` and `schema.json` only.
+- Users run the artifact **CI built**, not one built on their machine: the release tarball, via
+  `npx <release url>`. CI smoke-tests that exact artifact before it ships.
 - The repository (<https://github.com/lewis-wow/claude-bit>) is public and, until the package is published, is itself the
   distribution channel. See [github.md](github.md).
 
 ## Tooling
 
+- The package manager is **pnpm**, pinned in `packageManager`. Use `pnpm`, never `npm`, for
+  development. The sole exception is the `prepare` script, which runs on a consumer's machine
+  during `npx github:...` where npm is guaranteed to exist and pnpm is not.
 - Typecheck with **tsgo**, lint with **oxlint**, format with **oxfmt**, test with **vitest**.
-- `npm run check` runs those four plus the build, and must stay green — with no lint warnings,
+- `pnpm run check` runs those four plus the build, and must stay green — with no lint warnings,
   not just no errors.
 - `.nvmrc` tracks the current Node **Active LTS**. `engines` stays at the lowest version actually
   supported, which is lower.

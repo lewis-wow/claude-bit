@@ -38,7 +38,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "schema": "node scripts/writeSchema.ts && oxfmt schema.json",
-    "check": "npm run fmt:check && npm run lint && npm run typecheck && npm run test && npm run build"
+    "site": "node scripts/buildSite.ts",
+    "check": "pnpm run fmt:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build"
   },
   "dependencies": {
     "@clack/prompts": "^1.8.1",
@@ -55,5 +56,6 @@
   },
   "engines": {
     "node": ">=22.0.0"
-  }
+  },
+  "packageManager": "pnpm@11.25.0"
 }

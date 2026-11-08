@@ -28,13 +28,16 @@ In short, and without exception:
 ## Commands
 
 ```sh
-npm run check      # fmt:check + lint + typecheck + test + build — must stay green
-npm test           # vitest
-npm run typecheck  # tsgo
-npm run fmt        # oxfmt
-npm run build      # emit dist/ — what the published package runs
-npm run schema     # regenerate schema.json after editing src/config/schema.ts
+pnpm run check      # fmt:check + lint + typecheck + test + build — must stay green
+pnpm test           # vitest
+pnpm run typecheck  # tsgo
+pnpm run fmt        # oxfmt
+pnpm run build      # emit dist/ — what the published package runs
+pnpm run schema     # regenerate schema.json after editing src/config/schema.ts
 ```
+
+This is a **pnpm** project (pinned in `packageManager`). Do not use `npm` — except in the
+`prepare` script, which runs on consumers' machines where pnpm may be absent.
 
 ## Notes
 
@@ -47,3 +50,5 @@ npm run schema     # regenerate schema.json after editing src/config/schema.ts
 - The repository is public and is currently the distribution channel, so a broken `main` breaks
   `npx github:lewis-wow/claude-bit` for everyone. Use `gh` for repository work; it is already
   authenticated.
+- CI packs the build and smoke-tests that tarball through `npx` in a real worktree. Users run the
+  CI-built release artifact, not a local build. Keep both workflows green.

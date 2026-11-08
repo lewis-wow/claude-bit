@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Check
+        run: pnpm run check
+
+      - name: Pack
+        run: |
+          pnpm pack --pack-destination .
+          cp claude-bit-*.tgz claude-bit.tgz
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            claude-bit-*.tgz
+            claude-bit.tgz
+          generate_release_notes: true
+          body: |
+            Run it straight from this release — no clone, no local build:
+
+            ```sh
+            npx https://github.com/${{ github.repository }}/releases/latest/download/claude-bit.tgz
+            pnpm dlx https://github.com/${{ github.repository }}/releases/latest/download/claude-bit.tgz
+            ```

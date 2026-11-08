@@ -7,7 +7,7 @@ import { configSchema } from '../src/config/schema.ts';
 
 const outputPath = join(import.meta.dirname, '..', 'schema.json');
 
-const SCHEMA_ID = 'https://unpkg.com/claude-bit/schema.json';
+const SCHEMA_ID = 'https://lewis-wow.github.io/claude-bit/schema.json';
 
 const { $schema, ...generated } = z.toJSONSchema(configSchema, { io: 'input' });
 
