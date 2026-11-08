@@ -1,0 +1,26 @@
+{
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.oxc": "explicit"
+  },
+  "oxc.fmt.disableNestedConfig": true,
+  "oxc.lint.disableNestedConfig": true,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "files.eol": "\n",
+  "json.schemas": [
+    {
+      "fileMatch": ["claude-bit.json", ".claude-bit.json"],
+      "url": "./schema.json"
+    }
+  ],
+  "terminal.integrated.env.osx": {
+    "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN": "1"
+  },
+  "terminal.integrated.env.linux": {
+    "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN": "1"
+  },
+  "terminal.integrated.env.windows": {
+    "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN": "1"
+  }
+}

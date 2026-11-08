@@ -1,0 +1,152 @@
+# claude-bit
+
+A thin wrapper around the `claude` CLI that puts git worktrees in front of every session.
+
+Run `claude-bit` anywhere inside a repository and it asks which worktree Claude should run in —
+the main checkout, any linked worktree, or a new one it creates for you. It then names the
+terminal window after that worktree, continues the worktree's existing conversation if there is
+one, and hands over to `claude` with your own arguments appended.
+
+```
+┌  Where should Claude run?
+│
+◆  claude-bit            main · 3 minutes ago · main checkout
+│  + Create new worktree…
+│  feat-config           feat/config · 2 hours ago
+│  fix-title             fix/title · yesterday
+└
+```
+
+## Install
+
+```sh
+npm install
+npm link        # puts `claude-bit` on your PATH
+```
+
+Requires Node 22.18 or newer — the CLI runs TypeScript directly via Node's type stripping, so
+there is no build step.
+
+## How it decides
+
+| Situation                                                                      | What happens                                   |
+| ------------------------------------------------------------------------------ | ---------------------------------------------- |
+| Interactive terminal, inside a repository                                      | The picker opens                               |
+| You pass a flag that already names a session (`-c`, `--resume`, `-p`, `-w`, …) | Straight to `claude`, no picker                |
+| stdin is not a terminal (piped, CI)                                            | Straight to `claude` in the enclosing worktree |
+| Not inside a git repository                                                    | Straight to `claude` in the current directory  |
+| The chosen worktree has a stored conversation                                  | `--continue` is added                          |
+
+Arguments you type are always forwarded last, so they override anything the wrapper adds:
+
+```sh
+claude-bit --model opus "explain the picker"
+```
+
+## Configuration
+
+Configuration is per project. Drop a `claude-bit.json` (or `.claude-bit.json`) anywhere at or
+above your working directory — normally the repository root:
+
+```json
+{
+  "$schema": "./node_modules/claude-bit/schema.json",
+  "args": ["--dangerously-skip-permissions"],
+  "terminal": {
+    "title": "{repo}/{worktree} · {branch}"
+  },
+  "worktree": {
+    "args": ["--tmux"]
+  }
+}
+```
+
+Layers apply in order, each overriding the one before it:
+
+1. the built-in defaults
+2. `~/.config/claude-bit/config.json` (or `$XDG_CONFIG_HOME/claude-bit/config.json`)
+3. the file in the **main checkout** — configuration belongs to the repository, and a linked
+   worktree lives outside the main checkout, so walking up from there would never reach it
+4. the nearest file above the current directory, bounded by the worktree that directory sits in,
+   so a single worktree can override the repository's settings
+
+Objects merge key by key, so a project only states what it changes. Arrays replace wholesale —
+`args` is a complete statement of intent, not something to append to. Unknown keys are an error,
+so a typo never passes silently.
+
+### Options
+
+| Key                          | Default                              | Meaning                                                                 |
+| ---------------------------- | ------------------------------------ | ----------------------------------------------------------------------- |
+| `command`                    | `"claude"`                           | Executable to launch.                                                   |
+| `args`                       | `["--dangerously-skip-permissions"]` | Flags added to every launch, before yours.                              |
+| `resumeExistingSession`      | `true`                               | Add `--continue` when the worktree already has a conversation.          |
+| `sessionsDirectory`          | `null`                               | Where Claude Code keeps transcripts. `null` means `~/.claude/projects`. |
+| `color`                      | `"auto"`                             | `auto` \| `always` \| `never`. `auto` honours `NO_COLOR`.               |
+| `picker.enabled`             | `true`                               | Turn the picker off entirely.                                           |
+| `picker.message`             | `"Where should Claude run?"`         | Prompt above the list.                                                  |
+| `picker.maxItems`            | `12`                                 | Rows shown before the list scrolls.                                     |
+| `picker.createWorktreeLabel` | `"+ Create new worktree…"`           | Label of the create entry.                                              |
+| `picker.passthroughFlags`    | see `schema.json`                    | Arguments that mean "skip the picker".                                  |
+| `worktree.namePlaceholder`   | `"feat/my-thing"`                    | Placeholder in the name prompt.                                         |
+| `worktree.args`              | `[]`                                 | Flags used only when creating a worktree, e.g. `["--tmux"]`.            |
+| `terminal.title`             | `"{worktree} · {branch}"`            | Window title, or `null` to leave the title alone.                       |
+| `terminal.sessionName`       | `"{worktree}"`                       | Passed to `claude --name`, or `null` to omit it.                        |
+
+Both templates understand `{worktree}`, `{branch}`, `{repo}` and `{path}`. A token with no value
+disappears along with the separator beside it, so a detached worktree reads `api`, not `api · `.
+
+`schema.json` is generated from the same schema that validates your file (`npm run schema`), so
+an editor pointed at it will complete and check every key.
+
+## Terminal titles
+
+The title is set twice over, because two things want to own it:
+
+- `claude-bit` writes an OSC title sequence before handing off, which is what you see while
+  Claude starts up;
+- `--name` tells Claude Code itself what this session is called, which it shows in its prompt
+  box, in `/resume`, and in the title it maintains afterwards.
+
+Set `terminal.title` to `null` if your shell prompt manages the title, or `terminal.sessionName`
+to `null` if you would rather Claude named the session itself.
+
+## Layout
+
+```
+src/
+  cli.ts            entry point: process in, exit status out
+  app.ts            the flow — find repo, load config, choose worktree, plan launch
+  claude/
+    plan.ts         pure: target + config → the exact command to run
+    launcher.ts     spawns it and mirrors the child's exit status
+    sessions.ts     whether a directory already has a stored conversation
+  config/
+    schema.ts       the config contract, and the source of schema.json
+    merge.ts        how layers combine
+    load.ts         discovery, layering, validation
+  git/
+    git.ts          the git runner, injectable so nothing needs a real repo to test
+    porcelain.ts    pure parsers for git's machine-readable output
+    repository.ts   worktrees, ordered the way the picker wants them
+  terminal/
+    palette.ts      colour roles, backed by picocolors
+    title.ts        title templates and the escape sequence that carries them
+  ui/
+    picker.ts       the interactive chooser
+    labels.ts       how a worktree reads in the list
+```
+
+The decision layer (`plan.ts`, `app.ts`) is pure and injected, so what actually matters — which
+flags Claude receives, in what order — is covered by tests rather than by running the binary.
+
+## Development
+
+```sh
+npm run check        # format, lint, typecheck, test
+npm test             # vitest
+npm run typecheck    # tsgo (TypeScript's native port)
+npm run lint         # oxlint
+npm run fmt          # oxfmt
+npm run schema       # regenerate schema.json after editing config/schema.ts
+```

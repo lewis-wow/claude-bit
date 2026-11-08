@@ -1,0 +1,6 @@
+{
+  "$schema": "./schema.json",
+  "terminal": {
+    "title": "{repo}/{worktree} · {branch}"
+  }
+}

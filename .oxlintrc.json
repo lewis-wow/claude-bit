@@ -1,0 +1,39 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["import", "typescript", "unicorn", "oxc", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error",
+    "pedantic": "warn"
+  },
+  "env": {
+    "node": true,
+    "es2024": true
+  },
+  "rules": {
+    "no-console": "off",
+    "unicorn/no-process-exit": "off",
+    "unicorn/no-array-callback-reference": "off",
+    "unicorn/no-useless-undefined": "off",
+    "oxc/no-map-spread": "off",
+    "typescript/consistent-type-imports": [
+      "error",
+      { "prefer": "type-imports", "fixStyle": "separate-type-imports" }
+    ],
+    "typescript/explicit-module-boundary-types": "off"
+  },
+  "ignorePatterns": ["node_modules", "coverage"],
+  "overrides": [
+    {
+      "files": ["**/*.test.ts"],
+      "rules": {
+        "typescript/no-non-null-assertion": "off",
+        "unicorn/consistent-function-scoping": "off",
+        "max-lines-per-function": "off",
+        "require-await": "off",
+        "vitest/require-mock-type-parameters": "off"
+      }
+    }
+  ]
+}
