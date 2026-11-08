@@ -231,6 +231,26 @@ The title is set twice over, because two things want to own it:
 Set `terminal.title` to `null` if your shell prompt manages the title, or `terminal.sessionName`
 to `null` if you would rather Claude named the session itself.
 
+### VS Code shows `node` on the tab
+
+VS Code labels a terminal tab with the name of the running **process**, so every session reads
+`node` no matter what title is set. The OSC title is available there, just under a different
+name — `${sequence}`:
+
+```json
+{
+  "terminal.integrated.tabs.title": "${sequence}${separator}${process}"
+}
+```
+
+`${sequence}` alone is enough if every terminal you open sets a title; keeping `${process}` after
+it means a plain shell still has something to show.
+
+Worth knowing before you turn this on: the tab will not keep reading `{worktree} · {branch}`.
+`claude-bit` sets that title once, just before handing off, and Claude Code then maintains its
+own — so the tab follows Claude. That is usually what you want, and the worktree name survives
+anyway, because `terminal.sessionName` passes it to `--name`.
+
 ## Layout
 
 ```
