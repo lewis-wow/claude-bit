@@ -164,7 +164,8 @@ The decision layer (`plan.ts`, `app.ts`) is pure and injected, so what actually 
 flags Claude receives, in what order — is covered by tests rather than by running the binary.
 
 Files are named in camelCase; only folders use kebab-case. Each enum is an `as const` object in
-a file of its own, with a type of the same name merged alongside it.
+a file of its own, with a type of the same name merged alongside it. The full set of conventions
+is in [docs/conventions.md](docs/conventions.md).
 
 ## Development
 
