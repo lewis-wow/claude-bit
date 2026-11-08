@@ -1,6 +1,6 @@
 import { planLaunch, usesPassthroughFlag } from './claude/plan.ts';
 import type { Launch, LaunchTarget } from './claude/plan.ts';
-import { defaultSessionsDirectory, hasStoredSession } from './claude/sessions.ts';
+import { defaultSessionsDirectory, expandHome, hasStoredSession } from './claude/sessions.ts';
 import { loadConfig } from './config/load.ts';
 import type { Config } from './config/schema.ts';
 import { runGit } from './git/git.ts';
@@ -22,7 +22,7 @@ export type RunOptions = {
   /** Arguments after the program name, forwarded to Claude verbatim. */
   argv: readonly string[];
   cwd: string;
-  /** False when stdin is piped, which rules out prompting. */
+  /** False unless both ends of the terminal are available for prompting. */
   isInteractive: boolean;
 };
 
@@ -46,7 +46,8 @@ const defaultDependencies: Dependencies = {
 /** Either a command to run, or the news that the user backed out of the picker. */
 export type Resolution = { launch: Launch } | { cancelled: true };
 
-const sessionsDirectoryFor = (config: Config) => config.sessionsDirectory ?? defaultSessionsDirectory();
+const sessionsDirectoryFor = (config: Config) =>
+  config.sessionsDirectory === null ? defaultSessionsDirectory() : expandHome(config.sessionsDirectory);
 
 /**
  * The worktree to use when the picker is out of the question — either the one
@@ -57,7 +58,7 @@ const implicitTarget = (repository: Repository, enclosing: Worktree | undefined)
 
   return {
     kind: 'existing',
-    path: worktree?.path ?? repository.mainCheckout,
+    path: worktree?.path ?? repository.root,
     branch: worktree?.branch,
     hasStoredSession: false,
   };
@@ -91,9 +92,12 @@ export const resolveLaunch = async (
 
   const repository = openRepository({ git, cwd });
   const enclosing = repository && findEnclosingWorktree(repository.worktrees, cwd);
+  const primaryWorktree = repository?.worktrees.find((worktree) => worktree.isMainCheckout);
   const { config } = readConfig({
     cwd,
-    repositoryRoot: repository?.mainCheckout,
+    // A bare layout has no main checkout, so there is no repository-wide file
+    // to layer — each worktree carries its own committed copy instead.
+    repositoryRoot: primaryWorktree?.path,
     worktreeRoot: enclosing?.path,
   });
 
@@ -110,7 +114,14 @@ export const resolveLaunch = async (
       sessionState,
     );
 
-    return { launch: planLaunch({ config, repo: cwd, target, forwardedArgs: argv }) };
+    return {
+      launch: planLaunch({
+        config,
+        repository: { root: cwd, directory: cwd },
+        target,
+        forwardedArgs: argv,
+      }),
+    };
   }
 
   const chosen = canPrompt
@@ -124,7 +135,7 @@ export const resolveLaunch = async (
   return {
     launch: planLaunch({
       config,
-      repo: repository.mainCheckout,
+      repository,
       target: withSessionState(chosen, sessionState),
       forwardedArgs: argv,
     }),

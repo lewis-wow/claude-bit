@@ -30,7 +30,7 @@ describe('openRepository', () => {
   it('derives the main checkout from the common git directory', () => {
     const repository = openRepository({ git: fakeGit(), cwd: '/repo' });
 
-    expect(repository?.mainCheckout).toBe('/repo');
+    expect(repository?.directory).toBe('/repo');
   });
 
   it('puts the main checkout first and orders the rest by most recent commit', () => {
@@ -77,7 +77,7 @@ describe('openRepository', () => {
       cwd: '/repo',
     });
 
-    expect(repository?.mainCheckout).toBe('/repo');
+    expect(repository?.directory).toBe('/repo');
     expect(repository?.worktrees.map((worktree) => worktree.path)).toEqual(['/repo-wt/new']);
   });
 });
@@ -115,5 +115,54 @@ describe('openRepository when commit details are unavailable', () => {
 
     expect(repository?.worktrees).toHaveLength(3);
     expect(repository?.worktrees.every((worktree) => worktree.commit === undefined)).toBe(true);
+  });
+});
+
+describe('openRepository with a bare repository layout', () => {
+  const BARE_LIST = [
+    'worktree /proj/.bare\nbare\n',
+    'worktree /proj/feat-x\nHEAD bbb\nbranch refs/heads/feat-x\n',
+    'worktree /proj/main\nHEAD aaa\nbranch refs/heads/main\n',
+  ].join('\n');
+
+  const bareGit = (args: string[]) => {
+    if (args[0] === 'rev-parse') return '/proj/.bare';
+    if (args[0] === 'worktree') return BARE_LIST;
+    if (args[0] === 'show')
+      return [`aaa${COMMIT_FIELD_SEPARATOR}300${COMMIT_FIELD_SEPARATOR}1 hour ago`].join('\n');
+
+    throw new Error(`unexpected git invocation: ${args.join(' ')}`);
+  };
+
+  it('does not offer the bare repository as a place to run', () => {
+    const repository = openRepository({ git: bareGit, cwd: '/proj/main' });
+
+    expect(repository?.worktrees.map((worktree) => worktree.path)).not.toContain('/proj/.bare');
+  });
+
+  it('has no primary worktree, because a bare layout has none', () => {
+    const repository = openRepository({ git: bareGit, cwd: '/proj/main' });
+
+    expect(repository?.worktrees.some((worktree) => worktree.isMainCheckout)).toBe(false);
+  });
+
+  it('names the repository after the directory holding the bare repository', () => {
+    expect(openRepository({ git: bareGit, cwd: '/proj/main' })?.directory).toBe('/proj');
+  });
+
+  it('falls back to a real worktree as the place to create new worktrees from', () => {
+    const repository = openRepository({ git: bareGit, cwd: '/proj/main' });
+
+    expect(repository?.root).toBe(repository?.worktrees[0]?.path);
+    expect(repository?.root).not.toBe('/proj/.bare');
+  });
+});
+
+describe('openRepository with a standard layout', () => {
+  it('uses the primary worktree as the root', () => {
+    const repository = openRepository({ git: fakeGit(), cwd: '/repo' });
+
+    expect(repository?.root).toBe('/repo');
+    expect(repository?.directory).toBe('/repo');
   });
 });

@@ -22,6 +22,8 @@ export type WorktreeRecord = {
   head: string;
   /** Short branch name, or `undefined` when the worktree is detached. */
   branch: string | undefined;
+  /** True for the bare repository itself, which has no working tree to run in. */
+  isBare: boolean;
 };
 
 export type CommitSummary = {
@@ -64,6 +66,7 @@ export const parseWorktreeList = (porcelain: string): WorktreeRecord[] =>
         path,
         head: NULL_OBJECT_ID.test(head) ? '' : head,
         branch: branch ? branch.replace(BRANCH_REF_PREFIX, '') : undefined,
+        isBare: fields.has('bare'),
       },
     ];
   });

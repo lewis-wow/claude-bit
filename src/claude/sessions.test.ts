@@ -1,10 +1,10 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { hasStoredSession, sessionDirectoryFor, sessionDirectoryName } from './sessions.ts';
+import { expandHome, hasStoredSession, sessionDirectoryFor, sessionDirectoryName } from './sessions.ts';
 
 let sessionsDirectory: string;
 
@@ -51,5 +51,33 @@ describe('hasStoredSession', () => {
 
   it('is false when the sessions directory itself is missing', () => {
     expect(hasStoredSession('/repo', join(sessionsDirectory, 'absent'))).toBe(false);
+  });
+});
+
+describe('expandHome', () => {
+  it('expands a leading tilde to the home directory', () => {
+    expect(expandHome('~/.claude/projects')).toBe(join(homedir(), '.claude', 'projects'));
+  });
+
+  it('expands a bare tilde', () => {
+    expect(expandHome('~')).toBe(homedir());
+  });
+
+  it('leaves an absolute path alone', () => {
+    expect(expandHome('/var/sessions')).toBe('/var/sessions');
+  });
+
+  it('does not touch a tilde that is part of a name', () => {
+    expect(expandHome('~backup/sessions')).toBe('~backup/sessions');
+  });
+});
+
+describe('hasStoredSession with a tilde-prefixed directory', () => {
+  it('finds transcripts once the tilde is expanded', () => {
+    const directory = sessionDirectoryFor('/repo', sessionsDirectory);
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(join(directory, 'a.jsonl'), '');
+
+    expect(hasStoredSession('/repo', expandHome(sessionsDirectory))).toBe(true);
   });
 });

@@ -43,7 +43,7 @@ export const pickTarget = async ({
   if (first === undefined) {
     return {
       kind: 'existing',
-      path: repository.mainCheckout,
+      path: repository.root,
       branch: undefined,
       hasStoredSession: false,
     };
@@ -70,7 +70,14 @@ export const pickTarget = async ({
   if (selection !== CREATE_NEW_WORKTREE) {
     const chosen = repository.worktrees.find((worktree) => worktree.path === selection);
 
-    return chosen === undefined ? undefined : toTarget(chosen);
+    // Every option was built from this list, so a miss means the two have
+    // drifted apart. Reporting it as a cancellation would hide a real bug
+    // behind the exit status of a deliberate Ctrl-C.
+    if (chosen === undefined) {
+      throw new Error(`Selected worktree is no longer listed: ${selection}`);
+    }
+
+    return toTarget(chosen);
   }
 
   const name = await text({

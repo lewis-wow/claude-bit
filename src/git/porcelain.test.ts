@@ -12,8 +12,8 @@ describe('parseWorktreeList', () => {
     ].join('\n');
 
     expect(parseWorktreeList(output)).toEqual([
-      { path: '/repo', head: 'abc123', branch: 'main' },
-      { path: '/repo-wt/feature', head: 'def456', branch: 'feat/thing' },
+      { path: '/repo', head: 'abc123', branch: 'main', isBare: false },
+      { path: '/repo-wt/feature', head: 'def456', branch: 'feat/thing', isBare: false },
     ]);
   });
 
@@ -21,7 +21,7 @@ describe('parseWorktreeList', () => {
     const output = 'worktree /repo-wt/spike\nHEAD abc123\ndetached\n';
 
     expect(parseWorktreeList(output)).toEqual([
-      { path: '/repo-wt/spike', head: 'abc123', branch: undefined },
+      { path: '/repo-wt/spike', head: 'abc123', branch: undefined, isBare: false },
     ]);
   });
 
@@ -64,6 +64,21 @@ describe('parseWorktreeList with an unborn branch', () => {
   it('treats the null object id as no commit at all', () => {
     const output = `worktree /repo\nHEAD ${'0'.repeat(40)}\nbranch refs/heads/main\n`;
 
-    expect(parseWorktreeList(output)).toEqual([{ path: '/repo', head: '', branch: 'main' }]);
+    expect(parseWorktreeList(output)).toEqual([{ path: '/repo', head: '', branch: 'main', isBare: false }]);
+  });
+});
+
+describe('parseWorktreeList with a bare repository', () => {
+  const BARE_LAYOUT = [
+    'worktree /proj/.bare\nbare\n',
+    'worktree /proj/main\nHEAD aaa\nbranch refs/heads/main\n',
+  ].join('\n');
+
+  it('marks the bare entry, which has no working tree', () => {
+    expect(parseWorktreeList(BARE_LAYOUT).map((record) => record.isBare)).toEqual([true, false]);
+  });
+
+  it('still reports the bare entry so callers can decide what to do with it', () => {
+    expect(parseWorktreeList(BARE_LAYOUT)).toHaveLength(2);
   });
 });

@@ -15,7 +15,9 @@ const main = async () => {
   const resolution = await resolveLaunch({
     argv: process.argv.slice(2),
     cwd: process.cwd(),
-    isInteractive: Boolean(process.stdin.isTTY),
+    // Both ends matter: the picker reads keys from stdin but draws on stdout,
+    // so a redirected stdout would hide the prompt and look like a hang.
+    isInteractive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
   });
 
   if ('cancelled' in resolution) {

@@ -10,6 +10,7 @@ const worktree = (overrides: Partial<Worktree> = {}): Worktree => ({
   path: '/repo-wt/api',
   head: 'abc',
   branch: 'feat/api',
+  isBare: false,
   isMainCheckout: false,
   commit: { committedAt: 100, relative: '2 days ago' },
   ...overrides,

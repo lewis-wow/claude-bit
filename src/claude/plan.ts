@@ -36,8 +36,12 @@ export type Launch = {
 
 type PlanLaunchOptions = {
   config: Config;
-  /** Absolute path of the main checkout. */
-  repo: string;
+  repository: {
+    /** A real worktree to create new worktrees from. */
+    root: string;
+    /** Identifies the repository; supplies the `{repo}` token. Not always a worktree. */
+    directory: string;
+  };
   target: LaunchTarget;
   /** Arguments the user typed, forwarded verbatim. */
   forwardedArgs: readonly string[];
@@ -47,11 +51,11 @@ type PlanLaunchOptions = {
 const worktreeName = (target: LaunchTarget) =>
   target.kind === 'existing' ? basename(target.path) : target.name;
 
-const titleTokensFor = (target: LaunchTarget, repo: string): TitleTokens => ({
+const titleTokensFor = (target: LaunchTarget, repository: PlanLaunchOptions['repository']): TitleTokens => ({
   worktree: worktreeName(target),
   branch: target.kind === 'existing' ? target.branch : undefined,
-  repo: basename(repo),
-  path: target.kind === 'existing' ? target.path : repo,
+  repo: basename(repository.directory),
+  path: target.kind === 'existing' ? target.path : repository.root,
 });
 
 const renderOptionalTemplate = (template: string | null, tokens: TitleTokens) => {
@@ -75,8 +79,8 @@ export const usesPassthroughFlag = (argv: readonly string[], flags: readonly str
   return argv.some((argument) => known.has(argument.split('=')[0] ?? argument));
 };
 
-export const planLaunch = ({ config, repo, target, forwardedArgs }: PlanLaunchOptions): Launch => {
-  const tokens = titleTokensFor(target, repo);
+export const planLaunch = ({ config, repository, target, forwardedArgs }: PlanLaunchOptions): Launch => {
+  const tokens = titleTokensFor(target, repository);
   const sessionName = renderOptionalTemplate(config.terminal.sessionName, tokens);
 
   const targetArgs =
@@ -88,7 +92,7 @@ export const planLaunch = ({ config, repo, target, forwardedArgs }: PlanLaunchOp
 
   return {
     command: config.command,
-    cwd: target.kind === 'new' ? repo : target.path,
+    cwd: target.kind === 'new' ? repository.root : target.path,
     title: renderOptionalTemplate(config.terminal.title, tokens),
     args: [
       ...config.args,

@@ -12,9 +12,16 @@ export type Worktree = WorktreeRecord & {
 };
 
 export type Repository = {
-  /** Absolute path of the main checkout — the only place new worktrees can be created from. */
-  mainCheckout: string;
-  /** Main checkout first, then linked worktrees ordered by most recent commit. */
+  /**
+   * Identifies the repository: the directory holding the git common directory.
+   * That is the main checkout in the usual layout, but in the increasingly
+   * common bare layout (`proj/.bare` beside `proj/main`, `proj/feat-x`) it is
+   * `proj`, which is not a worktree at all — so never run anything here.
+   */
+  directory: string;
+  /** A real worktree to run `claude --worktree` from. */
+  root: string;
+  /** Main checkout first when there is one, then the rest by most recent commit. */
   worktrees: Worktree[];
 };
 
@@ -23,7 +30,7 @@ type OpenRepositoryOptions = {
   cwd: string;
 };
 
-const readMainCheckout = (git: GitRunner, cwd: string) =>
+const readRepositoryDirectory = (git: GitRunner, cwd: string) =>
   dirname(git(['rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd }));
 
 /**
@@ -52,32 +59,38 @@ const byMostRecentCommit = (a: Worktree, b: Worktree) =>
  * is none. Worktrees come back in the order the picker should show them.
  */
 export const openRepository = ({ git, cwd }: OpenRepositoryOptions): Repository | undefined => {
-  let mainCheckout: string;
+  let directory: string;
   let records: WorktreeRecord[];
 
   try {
-    mainCheckout = readMainCheckout(git, cwd);
+    directory = readRepositoryDirectory(git, cwd);
     records = parseWorktreeList(git(['worktree', 'list', '--porcelain'], { cwd }));
   } catch {
     return undefined;
   }
 
+  // The bare repository has no working tree, so it is not somewhere to run.
+  const checkouts = records.filter((record) => !record.isBare);
+
   const commits = readCommitSummaries(
     git,
     cwd,
-    records.map((record) => record.head),
+    checkouts.map((record) => record.head),
   );
 
-  const worktrees = records.map((record) => ({
+  const worktrees = checkouts.map((record) => ({
     ...record,
-    isMainCheckout: resolve(record.path) === resolve(mainCheckout),
+    // In a bare layout `directory` matches no worktree, so nothing is marked —
+    // which is correct: such a repository has no main checkout.
+    isMainCheckout: resolve(record.path) === resolve(directory),
     commit: commits.get(record.head),
   }));
 
   const main = worktrees.filter((worktree) => worktree.isMainCheckout);
-  const linked = worktrees.filter((worktree) => !worktree.isMainCheckout).toSorted(byMostRecentCommit);
+  const rest = worktrees.filter((worktree) => !worktree.isMainCheckout).toSorted(byMostRecentCommit);
+  const ordered = [...main, ...rest];
 
-  return { mainCheckout, worktrees: [...main, ...linked] };
+  return { directory, root: ordered[0]?.path ?? directory, worktrees: ordered };
 };
 
 const contains = (directory: string, candidate: string) =>

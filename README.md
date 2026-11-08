@@ -33,7 +33,7 @@ there is no build step.
 | ------------------------------------------------------------------------------ | ---------------------------------------------- |
 | Interactive terminal, inside a repository                                      | The picker opens                               |
 | You pass a flag that already names a session (`-c`, `--resume`, `-p`, `-w`, …) | Straight to `claude`, no picker                |
-| stdin is not a terminal (piped, CI)                                            | Straight to `claude` in the enclosing worktree |
+| stdin or stdout is not a terminal (piped, redirected, CI)                      | Straight to `claude` in the enclosing worktree |
 | Not inside a git repository                                                    | Straight to `claude` in the current directory  |
 | The chosen worktree has a stored conversation                                  | `--continue` is added                          |
 
@@ -66,7 +66,8 @@ Layers apply in order, each overriding the one before it:
 1. the built-in defaults
 2. `~/.config/claude-bit/config.json` (or `$XDG_CONFIG_HOME/claude-bit/config.json`)
 3. the file in the **main checkout** — configuration belongs to the repository, and a linked
-   worktree lives outside the main checkout, so walking up from there would never reach it
+   worktree lives outside the main checkout, so walking up from there would never reach it.
+   A bare layout (below) has no main checkout, so this layer is simply absent
 4. the nearest file above the current directory, bounded by the worktree that directory sits in,
    so a single worktree can override the repository's settings
 
@@ -76,28 +77,46 @@ so a typo never passes silently.
 
 ### Options
 
-| Key                          | Default                              | Meaning                                                                 |
-| ---------------------------- | ------------------------------------ | ----------------------------------------------------------------------- |
-| `command`                    | `"claude"`                           | Executable to launch.                                                   |
-| `args`                       | `["--dangerously-skip-permissions"]` | Flags added to every launch, before yours.                              |
-| `resumeExistingSession`      | `true`                               | Add `--continue` when the worktree already has a conversation.          |
-| `sessionsDirectory`          | `null`                               | Where Claude Code keeps transcripts. `null` means `~/.claude/projects`. |
-| `color`                      | `"auto"`                             | `auto` \| `always` \| `never`. `auto` honours `NO_COLOR`.               |
-| `picker.enabled`             | `true`                               | Turn the picker off entirely.                                           |
-| `picker.message`             | `"Where should Claude run?"`         | Prompt above the list.                                                  |
-| `picker.maxItems`            | `12`                                 | Rows shown before the list scrolls.                                     |
-| `picker.createWorktreeLabel` | `"+ Create new worktree…"`           | Label of the create entry.                                              |
-| `picker.passthroughFlags`    | see `schema.json`                    | Arguments that mean "skip the picker".                                  |
-| `worktree.namePlaceholder`   | `"feat/my-thing"`                    | Placeholder in the name prompt.                                         |
-| `worktree.args`              | `[]`                                 | Flags used only when creating a worktree, e.g. `["--tmux"]`.            |
-| `terminal.title`             | `"{worktree} · {branch}"`            | Window title, or `null` to leave the title alone.                       |
-| `terminal.sessionName`       | `"{worktree}"`                       | Passed to `claude --name`, or `null` to omit it.                        |
+| Key                          | Default                              | Meaning                                                                                             |
+| ---------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `command`                    | `"claude"`                           | Executable to launch.                                                                               |
+| `args`                       | `["--dangerously-skip-permissions"]` | Flags added to every launch, before yours.                                                          |
+| `resumeExistingSession`      | `true`                               | Add `--continue` when the worktree already has a conversation.                                      |
+| `sessionsDirectory`          | `null`                               | Where Claude Code keeps transcripts. `null` means `~/.claude/projects`; a leading `~/` is expanded. |
+| `color`                      | `"auto"`                             | `auto` \| `always` \| `never`. `auto` honours `NO_COLOR`.                                           |
+| `picker.enabled`             | `true`                               | Turn the picker off entirely.                                                                       |
+| `picker.message`             | `"Where should Claude run?"`         | Prompt above the list.                                                                              |
+| `picker.maxItems`            | `12`                                 | Rows shown before the list scrolls.                                                                 |
+| `picker.createWorktreeLabel` | `"+ Create new worktree…"`           | Label of the create entry.                                                                          |
+| `picker.passthroughFlags`    | see `schema.json`                    | Arguments that mean "skip the picker".                                                              |
+| `worktree.namePlaceholder`   | `"feat/my-thing"`                    | Placeholder in the name prompt.                                                                     |
+| `worktree.args`              | `[]`                                 | Flags used only when creating a worktree, e.g. `["--tmux"]`.                                        |
+| `terminal.title`             | `"{worktree} · {branch}"`            | Window title, or `null` to leave the title alone.                                                   |
+| `terminal.sessionName`       | `"{worktree}"`                       | Passed to `claude --name`, or `null` to omit it.                                                    |
 
 Both templates understand `{worktree}`, `{branch}`, `{repo}` and `{path}`. A token with no value
 disappears along with the separator beside it, so a detached worktree reads `api`, not `api · `.
 
 `schema.json` is generated from the same schema that validates your file (`npm run schema`), so
-an editor pointed at it will complete and check every key.
+an editor pointed at it will complete and check every key. Each file is validated on its own
+before the layers are merged, so an error names the file that actually contains the bad value.
+
+## Repository layouts
+
+Both common layouts work:
+
+```
+proj/                       proj/
+  .git/                       .bare/
+  src/            and         main/
+proj-feat-x/                  feat-x/
+```
+
+On the left, `proj` is the main checkout; it is bolded and labelled in the picker, and its
+`claude-bit.json` applies to every worktree. On the right the repository is bare, so there is no
+main checkout — the `.bare` directory is never offered as a place to run, nothing is labelled as
+the main checkout, and each worktree's own committed config applies. The `{repo}` token resolves
+to `proj` in both cases.
 
 ## Terminal titles
 

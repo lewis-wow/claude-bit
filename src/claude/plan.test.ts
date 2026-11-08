@@ -6,6 +6,8 @@ import { planLaunch, usesPassthroughFlag } from './plan.ts';
 
 const config = (overrides: Partial<Config> = {}): Config => ({ ...defaultConfig(), ...overrides });
 
+const REPOSITORY = { root: '/repo', directory: '/repo' };
+
 const existingWorktree = {
   kind: 'existing' as const,
   path: '/repo-wt/api',
@@ -39,7 +41,7 @@ describe('usesPassthroughFlag', () => {
 
 describe('planLaunch for an existing worktree', () => {
   const plan = (overrides: Parameters<typeof planLaunch>[0]['target'] = existingWorktree) =>
-    planLaunch({ config: config(), repo: '/repo', target: overrides, forwardedArgs: [] });
+    planLaunch({ config: config(), repository: REPOSITORY, target: overrides, forwardedArgs: [] });
 
   it('runs in the worktree directory', () => {
     expect(plan().cwd).toBe('/repo-wt/api');
@@ -60,7 +62,7 @@ describe('planLaunch for an existing worktree', () => {
   it('does not continue when resuming is turned off', () => {
     const launch = planLaunch({
       config: config({ resumeExistingSession: false }),
-      repo: '/repo',
+      repository: REPOSITORY,
       target: { ...existingWorktree, hasStoredSession: true },
       forwardedArgs: [],
     });
@@ -83,7 +85,7 @@ describe('planLaunch for an existing worktree', () => {
   it('puts forwarded arguments last so they win', () => {
     const launch = planLaunch({
       config: config(),
-      repo: '/repo',
+      repository: REPOSITORY,
       target: existingWorktree,
       forwardedArgs: ['--model', 'opus'],
     });
@@ -96,7 +98,7 @@ describe('planLaunch for a new worktree', () => {
   const target = { kind: 'new' as const, name: 'feat/thing' };
 
   const plan = (overrides: Partial<Config> = {}) =>
-    planLaunch({ config: config(overrides), repo: '/repo', target, forwardedArgs: [] });
+    planLaunch({ config: config(overrides), repository: REPOSITORY, target, forwardedArgs: [] });
 
   it('runs from the main checkout, where git can create the worktree', () => {
     expect(plan().cwd).toBe('/repo');
@@ -125,7 +127,7 @@ describe('planLaunch template configuration', () => {
   it('omits --name when the session name template is null', () => {
     const launch = planLaunch({
       config: config({ terminal: { title: '{worktree}', sessionName: null } }),
-      repo: '/repo',
+      repository: REPOSITORY,
       target: existingWorktree,
       forwardedArgs: [],
     });
@@ -136,7 +138,7 @@ describe('planLaunch template configuration', () => {
   it('leaves the title unset when the title template is null', () => {
     const launch = planLaunch({
       config: config({ terminal: { title: null, sessionName: '{worktree}' } }),
-      repo: '/repo',
+      repository: REPOSITORY,
       target: existingWorktree,
       forwardedArgs: [],
     });
@@ -147,7 +149,7 @@ describe('planLaunch template configuration', () => {
   it('supports the repo and path tokens', () => {
     const launch = planLaunch({
       config: config({ terminal: { title: '{repo}: {worktree} ({path})', sessionName: null } }),
-      repo: '/repo',
+      repository: REPOSITORY,
       target: existingWorktree,
       forwardedArgs: [],
     });
@@ -159,7 +161,7 @@ describe('planLaunch template configuration', () => {
     expect(
       planLaunch({
         config: config({ command: 'claude-next' }),
-        repo: '/repo',
+        repository: REPOSITORY,
         target: existingWorktree,
         forwardedArgs: [],
       }).command,

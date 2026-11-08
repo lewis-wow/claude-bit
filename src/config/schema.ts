@@ -82,7 +82,7 @@ export const configSchema = z.strictObject({
     .string()
     .nullable()
     .default(null)
-    .describe('Where Claude Code stores sessions. Null means ~/.claude/projects.'),
+    .describe('Where Claude Code stores sessions. Null means ~/.claude/projects. A leading ~/ is expanded.'),
   color: z
     .enum(['auto', 'always', 'never'])
     .default('auto')

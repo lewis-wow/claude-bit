@@ -1,6 +1,6 @@
 import { readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 
 /**
  * Detecting whether Claude Code already has a conversation for a directory.
@@ -12,6 +12,14 @@ import { join, resolve } from 'node:path';
 const SESSION_FILE_EXTENSION = '.jsonl';
 
 export const defaultSessionsDirectory = (): string => join(homedir(), '.claude', 'projects');
+
+/**
+ * Expands a leading `~/`. A shell would have done this before the value ever
+ * reached us, but a path written in a config file arrives literally, and an
+ * unexpanded `~` would silently resolve against the launch directory.
+ */
+export const expandHome = (path: string): string =>
+  path === '~' || path.startsWith(`~${sep}`) ? join(homedir(), path.slice(1)) : path;
 
 /** Mirrors Claude Code's own mangling of a project path into a directory name. */
 export const sessionDirectoryName = (projectPath: string): string =>

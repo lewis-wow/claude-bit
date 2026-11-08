@@ -114,6 +114,17 @@ export const loadConfig = ({
     .map((file) => ({ file, contents: readJsonFile(file) }))
     .filter((layer) => layer.contents !== undefined);
 
+  // Validate each file on its own first. Validating only the merged result
+  // would report every problem against the highest-precedence file, pointing
+  // the user at one that may not even mention the offending key.
+  for (const layer of layers) {
+    const layerResult = configSchema.safeParse(layer.contents);
+
+    if (!layerResult.success) {
+      throw new ConfigError(layer.file, z.prettifyError(layerResult.error));
+    }
+  }
+
   const result = configSchema.safeParse(mergeConfigLayers(...layers.map((layer) => layer.contents)));
 
   if (!result.success) {

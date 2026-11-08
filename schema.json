@@ -13,9 +13,7 @@
       "minLength": 1
     },
     "args": {
-      "default": [
-        "--dangerously-skip-permissions"
-      ],
+      "default": ["--dangerously-skip-permissions"],
       "description": "Arguments added to every launch, before the ones you pass on the command line.",
       "type": "array",
       "items": {
@@ -29,21 +27,14 @@
     },
     "sessionsDirectory": {
       "default": null,
-      "description": "Where Claude Code stores sessions. Null means ~/.claude/projects.",
-      "type": [
-        "string",
-        "null"
-      ]
+      "description": "Where Claude Code stores sessions. Null means ~/.claude/projects. A leading ~/ is expanded.",
+      "type": ["string", "null"]
     },
     "color": {
       "default": "auto",
       "description": "Colored output. \"auto\" follows TTY detection and NO_COLOR.",
       "type": "string",
-      "enum": [
-        "auto",
-        "always",
-        "never"
-      ]
+      "enum": ["auto", "always", "never"]
     },
     "picker": {
       "default": {},
@@ -123,18 +114,12 @@
         "title": {
           "default": "{worktree} · {branch}",
           "description": "Terminal window title set before Claude starts. Null disables it. Tokens: {worktree} {branch} {repo} {path}",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "sessionName": {
           "default": "{worktree}",
           "description": "Value passed to `claude --name`, which names the session and the title Claude maintains. Null disables it. Tokens: {worktree} {branch} {repo} {path}",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         }
       },
       "additionalProperties": false

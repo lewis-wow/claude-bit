@@ -187,3 +187,23 @@ describe('loadConfig across worktrees', () => {
     expect(sources).toHaveLength(1);
   });
 });
+
+describe('loadConfig error attribution', () => {
+  it('names the user file when the bad value is in the user file', () => {
+    const userConfigPath = write('home/config.json', { picker: { maxItems: 'many' } });
+    write('claude-bit.json', { command: 'claude-project' });
+
+    expect(() => loadConfig({ cwd: root, repositoryRoot: root, userConfigPath })).toThrow(
+      /home\/config\.json/u,
+    );
+  });
+
+  it('names the project file when the bad value is in the project file', () => {
+    const userConfigPath = write('home/config.json', { command: 'claude-user' });
+    write('claude-bit.json', { picker: { maxItems: 'many' } });
+
+    expect(() => loadConfig({ cwd: root, repositoryRoot: root, userConfigPath })).toThrow(
+      /claude-bit\.json/u,
+    );
+  });
+});
