@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-export const TITLE_TOKENS = ['worktree', 'branch', 'repo', 'path'] as const;
+import { ColorMode } from '../terminal/color-mode.ts';
+import { TITLE_TOKENS } from '../terminal/title-token.ts';
 
 const TOKEN_LIST = TITLE_TOKENS.map((token) => `{${token}}`).join(' ');
 
@@ -74,7 +75,7 @@ export const configSchema = z.strictObject({
     .default(null)
     .describe('Where Claude Code stores sessions. Null means ~/.claude/projects. A leading ~/ is expanded.'),
   color: z
-    .enum(['auto', 'always', 'never'])
+    .enum(ColorMode)
     .default('auto')
     .describe('Colored output. "auto" follows TTY detection and NO_COLOR.'),
   picker: pickerSchema,

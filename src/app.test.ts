@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { resolveLaunch } from './app.ts';
 import type { Dependencies, RunOptions } from './app.ts';
+import { TargetKind } from './claude/target-kind.ts';
 import { defaultConfig } from './config/schema.ts';
 import type { Config } from './config/schema.ts';
 import { COMMIT_FIELD_SEPARATOR } from './git/porcelain.ts';
+import { ResolutionKind } from './resolution-kind.ts';
 
 const WORKTREE_LIST = [
   'worktree /repo\nHEAD aaa\nbranch refs/heads/main\n',
@@ -40,7 +42,7 @@ const resolve = (
       readConfig: () => ({ config: { ...defaultConfig(), ...config }, sources: [] }),
       hasSession: () => false,
       pick: async () => ({
-        kind: 'existing',
+        kind: TargetKind.Existing,
         path: '/repo',
         branch: 'main',
         hasStoredSession: false,
@@ -52,7 +54,7 @@ const resolve = (
 const launchOf = async (...args: Parameters<typeof resolve>) => {
   const resolution = await resolve(...args);
 
-  if ('cancelled' in resolution) {
+  if (resolution.kind === ResolutionKind.Cancelled) {
     throw new Error('expected a launch, got a cancellation');
   }
 
@@ -62,7 +64,7 @@ const launchOf = async (...args: Parameters<typeof resolve>) => {
 describe('resolveLaunch inside a repository', () => {
   it('asks the picker where to run', async () => {
     const pick = vi.fn(async () => ({
-      kind: 'existing' as const,
+      kind: TargetKind.Existing,
       path: '/repo-wt/api',
       branch: 'feat/api',
       hasStoredSession: false,
@@ -73,7 +75,7 @@ describe('resolveLaunch inside a repository', () => {
   });
 
   it('reports a cancelled picker instead of launching', async () => {
-    expect(await resolve({}, { pick: async () => undefined })).toEqual({ cancelled: true });
+    expect(await resolve({}, { pick: async () => undefined })).toEqual({ kind: ResolutionKind.Cancelled });
   });
 
   it('adds --continue when the chosen worktree has a stored session', async () => {

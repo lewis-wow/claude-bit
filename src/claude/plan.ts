@@ -3,16 +3,17 @@ import { basename } from 'node:path';
 import type { Config } from '../config/schema.ts';
 import { renderTitleTemplate } from '../terminal/title.ts';
 import type { TitleTokens } from '../terminal/title.ts';
+import { TargetKind } from './target-kind.ts';
 
 export type LaunchTarget =
   | {
-      kind: 'existing';
+      kind: typeof TargetKind.Existing;
       path: string;
       branch: string | undefined;
       hasStoredSession: boolean;
     }
   | {
-      kind: 'new';
+      kind: typeof TargetKind.New;
       name: string;
     };
 
@@ -34,13 +35,13 @@ type PlanLaunchOptions = {
 };
 
 const worktreeName = (target: LaunchTarget) =>
-  target.kind === 'existing' ? basename(target.path) : target.name;
+  target.kind === TargetKind.Existing ? basename(target.path) : target.name;
 
 const titleTokensFor = (target: LaunchTarget, repository: PlanLaunchOptions['repository']): TitleTokens => ({
   worktree: worktreeName(target),
-  branch: target.kind === 'existing' ? target.branch : undefined,
+  branch: target.kind === TargetKind.Existing ? target.branch : undefined,
   repo: basename(repository.directory),
-  path: target.kind === 'existing' ? target.path : repository.root,
+  path: target.kind === TargetKind.Existing ? target.path : repository.root,
 });
 
 const renderOptionalTemplate = (template: string | null, tokens: TitleTokens) => {
@@ -64,7 +65,7 @@ export const planLaunch = ({ config, repository, target, forwardedArgs }: PlanLa
   const sessionName = renderOptionalTemplate(config.terminal.sessionName, tokens);
 
   const targetArgs =
-    target.kind === 'new'
+    target.kind === TargetKind.New
       ? ['--worktree', target.name, ...config.worktree.args]
       : config.resumeExistingSession && target.hasStoredSession
         ? ['--continue']
@@ -72,7 +73,7 @@ export const planLaunch = ({ config, repository, target, forwardedArgs }: PlanLa
 
   return {
     command: config.command,
-    cwd: target.kind === 'new' ? repository.root : target.path,
+    cwd: target.kind === TargetKind.New ? repository.root : target.path,
     title: renderOptionalTemplate(config.terminal.title, tokens),
     args: [
       ...config.args,

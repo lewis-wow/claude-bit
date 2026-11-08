@@ -1,8 +1,8 @@
 import type { Writable } from 'node:stream';
 
-import { TITLE_TOKENS } from '../config/schema.ts';
+import { TITLE_TOKENS } from './title-token.ts';
+import type { TitleToken } from './title-token.ts';
 
-export type TitleToken = (typeof TITLE_TOKENS)[number];
 export type TitleTokens = Partial<Record<TitleToken, string | undefined>>;
 
 const TOKEN_PATTERN = /\{(\w+)\}/gu;

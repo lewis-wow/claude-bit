@@ -1,6 +1,7 @@
 import { isCancel, select, text } from '@clack/prompts';
 
 import type { LaunchTarget } from '../claude/plan.ts';
+import { TargetKind } from '../claude/target-kind.ts';
 import type { Config } from '../config/schema.ts';
 import { findEnclosingWorktree } from '../git/repository.ts';
 import type { Repository, Worktree } from '../git/repository.ts';
@@ -17,7 +18,7 @@ type PickTargetOptions = {
 };
 
 const toTarget = (worktree: Worktree): LaunchTarget => ({
-  kind: 'existing',
+  kind: TargetKind.Existing,
   path: worktree.path,
   branch: worktree.branch,
   hasStoredSession: false,
@@ -33,7 +34,7 @@ export const pickTarget = async ({
 
   if (first === undefined) {
     return {
-      kind: 'existing',
+      kind: TargetKind.Existing,
       path: repository.root,
       branch: undefined,
       hasStoredSession: false,
@@ -74,5 +75,5 @@ export const pickTarget = async ({
     validate: (value) => ((value ?? '').trim().length === 0 ? 'Name is required' : undefined),
   });
 
-  return isCancel(name) ? undefined : { kind: 'new', name: name.trim() };
+  return isCancel(name) ? undefined : { kind: TargetKind.New, name: name.trim() };
 };

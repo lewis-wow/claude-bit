@@ -3,13 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { defaultConfig } from '../config/schema.ts';
 import type { Config } from '../config/schema.ts';
 import { planLaunch, usesPassthroughFlag } from './plan.ts';
+import { TargetKind } from './target-kind.ts';
 
 const config = (overrides: Partial<Config> = {}): Config => ({ ...defaultConfig(), ...overrides });
 
 const REPOSITORY = { root: '/repo', directory: '/repo' };
 
 const existingWorktree = {
-  kind: 'existing' as const,
+  kind: TargetKind.Existing,
   path: '/repo-wt/api',
   branch: 'feat/api',
   hasStoredSession: false,
@@ -95,7 +96,7 @@ describe('planLaunch for an existing worktree', () => {
 });
 
 describe('planLaunch for a new worktree', () => {
-  const target = { kind: 'new' as const, name: 'feat/thing' };
+  const target = { kind: TargetKind.New, name: 'feat/thing' };
 
   const plan = (overrides: Partial<Config> = {}) =>
     planLaunch({ config: config(overrides), repository: REPOSITORY, target, forwardedArgs: [] });

@@ -1,6 +1,6 @@
 import pico from 'picocolors';
 
-import type { Config } from '../config/schema.ts';
+import { ColorMode } from './color-mode.ts';
 
 export type Palette = {
   accent: (value: string) => string;
@@ -9,14 +9,14 @@ export type Palette = {
   error: (value: string) => string;
 };
 
-export const shouldUseColor = (mode: Config['color'], supported = pico.isColorSupported): boolean => {
-  if (mode === 'always') return true;
-  if (mode === 'never') return false;
+export const shouldUseColor = (mode: ColorMode, supported = pico.isColorSupported): boolean => {
+  if (mode === ColorMode.Always) return true;
+  if (mode === ColorMode.Never) return false;
 
   return supported;
 };
 
-export const createPalette = (mode: Config['color'], supported?: boolean): Palette => {
+export const createPalette = (mode: ColorMode, supported?: boolean): Palette => {
   const colors = pico.createColors(shouldUseColor(mode, supported));
 
   return {

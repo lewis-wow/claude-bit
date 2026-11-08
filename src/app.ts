@@ -1,12 +1,14 @@
 import { planLaunch, usesPassthroughFlag } from './claude/plan.ts';
 import type { Launch, LaunchTarget } from './claude/plan.ts';
 import { defaultSessionsDirectory, expandHome, hasStoredSession } from './claude/sessions.ts';
+import { TargetKind } from './claude/target-kind.ts';
 import { loadConfig } from './config/load.ts';
 import type { Config } from './config/schema.ts';
 import { runGit } from './git/git.ts';
 import type { GitRunner } from './git/git.ts';
 import { findEnclosingWorktree, openRepository } from './git/repository.ts';
 import type { Repository, Worktree } from './git/repository.ts';
+import { ResolutionKind } from './resolution-kind.ts';
 import { createPalette } from './terminal/palette.ts';
 import { pickTarget } from './ui/picker.ts';
 
@@ -32,7 +34,9 @@ const defaultDependencies: Dependencies = {
   pick: pickTarget,
 };
 
-export type Resolution = { launch: Launch } | { cancelled: true };
+export type Resolution =
+  | { kind: typeof ResolutionKind.Launch; launch: Launch }
+  | { kind: typeof ResolutionKind.Cancelled };
 
 const sessionsDirectoryFor = (config: Config) =>
   config.sessionsDirectory === null ? defaultSessionsDirectory() : expandHome(config.sessionsDirectory);
@@ -41,7 +45,7 @@ const implicitTarget = (repository: Repository, enclosing: Worktree | undefined)
   const worktree = enclosing ?? repository.worktrees.find((candidate) => candidate.isMainCheckout);
 
   return {
-    kind: 'existing',
+    kind: TargetKind.Existing,
     path: worktree?.path ?? repository.root,
     branch: worktree?.branch,
     hasStoredSession: false,
@@ -56,7 +60,7 @@ const withSessionState = (
     passesThrough,
   }: { config: Config; hasSession: SessionLookup; passesThrough: boolean },
 ): LaunchTarget =>
-  target.kind === 'new'
+  target.kind === TargetKind.New
     ? target
     : {
         ...target,
@@ -85,11 +89,12 @@ export const resolveLaunch = async (
 
   if (repository === undefined) {
     const target = withSessionState(
-      { kind: 'existing', path: cwd, branch: undefined, hasStoredSession: false },
+      { kind: TargetKind.Existing, path: cwd, branch: undefined, hasStoredSession: false },
       sessionState,
     );
 
     return {
+      kind: ResolutionKind.Launch,
       launch: planLaunch({
         config,
         repository: { root: cwd, directory: cwd },
@@ -104,10 +109,11 @@ export const resolveLaunch = async (
     : implicitTarget(repository, enclosing);
 
   if (chosen === undefined) {
-    return { cancelled: true };
+    return { kind: ResolutionKind.Cancelled };
   }
 
   return {
+    kind: ResolutionKind.Launch,
     launch: planLaunch({
       config,
       repository,

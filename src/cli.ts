@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { resolveLaunch } from './app.ts';
 import { launch } from './claude/launcher.ts';
+import { ResolutionKind } from './resolution-kind.ts';
 import { createPalette } from './terminal/palette.ts';
 
 const CANCEL_EXIT_CODE = 130;
@@ -12,7 +13,7 @@ const main = async () => {
     isInteractive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
   });
 
-  if ('cancelled' in resolution) {
+  if (resolution.kind === ResolutionKind.Cancelled) {
     process.exit(CANCEL_EXIT_CODE);
   }
 
