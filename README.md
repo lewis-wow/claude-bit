@@ -93,9 +93,19 @@ during `npx github:...` and npm ships with Node while pnpm may not be installed 
 `.nvmrc` pins Node 26, the current Active LTS ("Lithium"). The test suite and build are verified
 on both 26 and 24.
 
-Running the TypeScript entry point directly (`node src/cli.ts`) additionally needs Node 22.18 or
-newer, which is where type stripping arrived. The published package does not — it ships compiled
-JavaScript, because Node refuses to strip types for files under `node_modules`.
+`pnpm run dev` is that entry point run straight from source — `node src/cli.ts`, no build step,
+Node stripping the types as it loads them. Arguments pass through it like any other invocation
+(`pnpm run dev -- --model opus`), and it exits with whatever `claude` exited with. It always runs
+in the repository root, because that is where `pnpm run` puts you; to try the picker against some
+_other_ repository, call the entry point by path from there instead:
+
+```sh
+cd ~/some/other/repo && node ~/code/claude-bit/src/cli.ts
+```
+
+Running the TypeScript entry point directly this way additionally needs Node 22.18 or newer, which
+is where type stripping arrived. The published package does not — it ships compiled JavaScript,
+because Node refuses to strip types for files under `node_modules`.
 
 ## How it decides
 
@@ -339,6 +349,7 @@ is in [docs/conventions.md](docs/conventions.md).
 ## Development
 
 ```sh
+pnpm run dev          # run the CLI from source — node src/cli.ts, no build step
 pnpm run check        # format, lint, typecheck, test, build
 pnpm test             # vitest
 pnpm run typecheck    # tsgo (TypeScript's native port)

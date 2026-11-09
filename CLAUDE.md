@@ -28,6 +28,7 @@ In short, and without exception:
 ## Commands
 
 ```sh
+pnpm run dev        # run the CLI straight from src/, no build — Node strips the types
 pnpm run check      # fmt:check + lint + typecheck + test + build — must stay green
 pnpm test           # vitest
 pnpm run typecheck  # tsgo
