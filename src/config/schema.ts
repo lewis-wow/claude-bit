@@ -17,6 +17,15 @@ const pickerSchema = z
       .string()
       .default('+ Create new worktree…')
       .describe('Label of the entry that creates a new worktree.'),
+    removeWorktreeLabel: z
+      .string()
+      .nullable()
+      .default('- Remove worktree…')
+      .describe('Label of the entry that removes worktrees. Null hides it, so nothing can be removed.'),
+    removeMessage: z
+      .string()
+      .default('Which worktrees should be removed?')
+      .describe('Prompt shown above the list of removable worktrees.'),
     passthroughFlags: z
       .array(z.string())
       .default([
@@ -46,8 +55,12 @@ const worktreeSchema = z
       .array(z.string())
       .default([])
       .describe('Extra arguments used only when creating a worktree, e.g. ["--tmux"].'),
+    forceRemove: z
+      .boolean()
+      .default(false)
+      .describe('Remove a worktree even when it still holds uncommitted or untracked changes.'),
   })
-  .describe('How new worktrees are created.')
+  .describe('How worktrees are created and removed.')
   .prefault({});
 
 const terminalSchema = z

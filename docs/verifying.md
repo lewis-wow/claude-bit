@@ -65,6 +65,27 @@ echo '{"command":"/tmp/fake-claude"}' > repo/claude-bit.json
 Exit code 7 coming back out confirms the wrapper mirrors the child's status
 rather than inventing one.
 
+## Driving the picker without a terminal
+
+The picker is the one part a test suite never opens, and removal added prompts behind prompts to
+it. A pty harness is not needed, and `script` will not take a pipe on its own stdin anyway.
+Install a fake stdin **before** anything imports `@clack/prompts` — it binds `node:process`'s
+`stdin` at import time, so patching afterwards leaves the prompt listening to the real one:
+
+```ts
+const input = new PassThrough();
+input.isTTY = true;
+input.setRawMode = () => {};
+Object.defineProperty(process, 'stdin', { value: input, configurable: true });
+
+const { chooseTarget } = await import('../src/ui/chooseTarget.ts');
+```
+
+Then write keys into it — `\u001B[B` down, `' '` to select, `'\r'` to confirm, `'y'` for a
+confirm prompt — against a scratch repository, and read back what `chooseTarget` returns. Worth
+checking in both layouts, because the initial cursor sits on the enclosing worktree, which is a
+different row in each.
+
 ## Terminal behaviour
 
 A pty harness (`script`) echoes keystrokes back into the captured output and is
@@ -125,6 +146,9 @@ Both are verified to pass, as is 24 in between.
 - [ ] Bare layout, from more than one worktree
 - [ ] Repository with no commits; directory that is not a repository
 - [ ] A passthrough flag (`--resume`) skips the picker and suppresses `--continue`
+- [ ] Removal offers neither the main checkout nor the worktree you are standing in
+- [ ] A dirty worktree is refused with git's own reason, and the picker reopens showing it
+- [ ] `worktree.forceRemove` removes it anyway; the branch survives either way
 - [ ] Config errors name the file that actually holds the bad value
 - [ ] Packed tarball installs and runs from `node_modules`
 - [ ] `schema.json` regenerates identically (`npm run schema`, then `git diff`)

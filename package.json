@@ -29,6 +29,7 @@
   ],
   "type": "module",
   "scripts": {
+    "dev": "node src/cli.ts",
     "build": "tsgo -p tsconfig.build.json",
     "prepare": "npm run build",
     "typecheck": "tsgo --noEmit",

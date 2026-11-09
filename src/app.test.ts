@@ -30,6 +30,13 @@ const gitOutsideRepo = () => () => {
   throw new Error('fatal: not a git repository');
 };
 
+const targetAt = (path: string, branch: string) => ({
+  kind: TargetKind.Existing,
+  path,
+  branch,
+  hasStoredSession: false,
+});
+
 const resolve = (
   options: Partial<RunOptions> = {},
   dependencies: Partial<Dependencies> = {},
@@ -41,12 +48,7 @@ const resolve = (
       git: gitInRepo(),
       readConfig: () => ({ config: { ...defaultConfig(), ...config }, sources: [] }),
       hasSession: () => false,
-      pick: async () => ({
-        kind: TargetKind.Existing,
-        path: '/repo',
-        branch: 'main',
-        hasStoredSession: false,
-      }),
+      choose: async () => targetAt('/repo', 'main'),
       ...dependencies,
     },
   );
@@ -62,20 +64,17 @@ const launchOf = async (...args: Parameters<typeof resolve>) => {
 };
 
 describe('resolveLaunch inside a repository', () => {
-  it('asks the picker where to run', async () => {
-    const pick = vi.fn(async () => ({
-      kind: TargetKind.Existing,
-      path: '/repo-wt/api',
-      branch: 'feat/api',
-      hasStoredSession: false,
-    }));
+  it('asks the chooser where to run', async () => {
+    const choose = vi.fn(async () => targetAt('/repo-wt/api', 'feat/api'));
 
-    expect((await launchOf({}, { pick })).cwd).toBe('/repo-wt/api');
-    expect(pick).toHaveBeenCalledOnce();
+    expect((await launchOf({}, { choose })).cwd).toBe('/repo-wt/api');
+    expect(choose).toHaveBeenCalledOnce();
   });
 
   it('reports a cancelled picker instead of launching', async () => {
-    expect(await resolve({}, { pick: async () => undefined })).toEqual({ kind: ResolutionKind.Cancelled });
+    expect(await resolve({}, { choose: async () => undefined })).toEqual({
+      kind: ResolutionKind.Cancelled,
+    });
   });
 
   it('adds --continue when the chosen worktree has a stored session', async () => {
@@ -104,12 +103,12 @@ describe('resolveLaunch inside a repository', () => {
 });
 
 describe('resolveLaunch when prompting is impossible or unwanted', () => {
-  const noPicker = { pick: vi.fn(async () => undefined) };
+  const noPicker = { choose: vi.fn(async () => undefined) };
 
   it('skips the picker when stdin is not a terminal', async () => {
     const launch = await launchOf({ isInteractive: false }, noPicker);
 
-    expect(noPicker.pick).not.toHaveBeenCalled();
+    expect(noPicker.choose).not.toHaveBeenCalled();
     expect(launch.cwd).toBe('/repo');
   });
 
@@ -162,9 +161,9 @@ describe('resolveLaunch outside a repository', () => {
   });
 
   it('never opens the picker', async () => {
-    const pick = vi.fn(async () => undefined);
-    await launchOf({ cwd: '/tmp/scratch' }, { git: gitOutsideRepo(), pick });
+    const choose = vi.fn(async () => undefined);
+    await launchOf({ cwd: '/tmp/scratch' }, { git: gitOutsideRepo(), choose });
 
-    expect(pick).not.toHaveBeenCalled();
+    expect(choose).not.toHaveBeenCalled();
   });
 });

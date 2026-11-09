@@ -86,3 +86,12 @@ export const findEnclosingWorktree = <T extends { path: string }>(
     .toSorted((a, b) => b.path.length - a.path.length)
     .at(0);
 };
+
+export const removableWorktrees = <T extends { path: string; isMainCheckout: boolean }>(
+  worktrees: readonly T[],
+  cwd: string,
+): T[] => {
+  const enclosing = findEnclosingWorktree(worktrees, cwd);
+
+  return worktrees.filter((worktree) => !worktree.isMainCheckout && worktree.path !== enclosing?.path);
+};

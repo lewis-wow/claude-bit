@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { COMMIT_FIELD_SEPARATOR } from './porcelain.ts';
-import { findEnclosingWorktree, openRepository } from './repository.ts';
+import { findEnclosingWorktree, openRepository, removableWorktrees } from './repository.ts';
 
 const WORKTREE_LIST = [
   'worktree /repo\nHEAD aaa\nbranch refs/heads/main\n',
@@ -164,5 +164,39 @@ describe('openRepository with a standard layout', () => {
 
     expect(repository?.root).toBe('/repo');
     expect(repository?.directory).toBe('/repo');
+  });
+});
+
+describe('removableWorktrees', () => {
+  const worktrees = [
+    { path: '/repo', isMainCheckout: true },
+    { path: '/repo-wt/api', isMainCheckout: false },
+    { path: '/repo-wt/web', isMainCheckout: false },
+  ];
+
+  it('never offers the main checkout, which git refuses to remove', () => {
+    expect(removableWorktrees(worktrees, '/elsewhere').map((worktree) => worktree.path)).toEqual([
+      '/repo-wt/api',
+      '/repo-wt/web',
+    ]);
+  });
+
+  it('never offers the worktree the user is standing in', () => {
+    expect(removableWorktrees(worktrees, '/repo-wt/api/src').map((worktree) => worktree.path)).toEqual([
+      '/repo-wt/web',
+    ]);
+  });
+
+  it('offers nothing when the repository has only a main checkout', () => {
+    expect(removableWorktrees([{ path: '/repo', isMainCheckout: true }], '/repo')).toEqual([]);
+  });
+
+  it('offers every worktree of a bare layout except the one in use', () => {
+    const bare = [
+      { path: '/proj/main', isMainCheckout: false },
+      { path: '/proj/feat-x', isMainCheckout: false },
+    ];
+
+    expect(removableWorktrees(bare, '/proj/main').map((worktree) => worktree.path)).toEqual(['/proj/feat-x']);
   });
 });

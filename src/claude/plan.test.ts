@@ -114,7 +114,7 @@ describe('planLaunch for a new worktree', () => {
   });
 
   it('appends the configured worktree-only arguments', () => {
-    const launch = plan({ worktree: { namePlaceholder: 'x', args: ['--tmux'] } });
+    const launch = plan({ worktree: { namePlaceholder: 'x', args: ['--tmux'], forceRemove: false } });
 
     expect(launch.args).toContain('--tmux');
   });

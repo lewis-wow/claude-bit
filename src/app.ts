@@ -9,8 +9,7 @@ import type { GitRunner } from './git/git.ts';
 import { findEnclosingWorktree, openRepository } from './git/repository.ts';
 import type { Repository, Worktree } from './git/repository.ts';
 import { ResolutionKind } from './resolutionKind.ts';
-import { createPalette } from './terminal/palette.ts';
-import { pickTarget } from './ui/picker.ts';
+import { chooseTarget } from './ui/chooseTarget.ts';
 
 export type RunOptions = {
   argv: readonly string[];
@@ -24,14 +23,14 @@ export type Dependencies = {
   git: GitRunner;
   readConfig: typeof loadConfig;
   hasSession: SessionLookup;
-  pick: typeof pickTarget;
+  choose: typeof chooseTarget;
 };
 
 const defaultDependencies: Dependencies = {
   git: runGit,
   readConfig: loadConfig,
   hasSession: hasStoredSession,
-  pick: pickTarget,
+  choose: chooseTarget,
 };
 
 export type Resolution =
@@ -92,7 +91,7 @@ export const resolveLaunch = async (
   { argv, cwd, isInteractive }: RunOptions,
   dependencies: Partial<Dependencies> = {},
 ): Promise<Resolution> => {
-  const { git, readConfig, hasSession, pick } = { ...defaultDependencies, ...dependencies };
+  const { git, readConfig, hasSession, choose } = { ...defaultDependencies, ...dependencies };
 
   const repository = openRepository({ git, cwd });
   const enclosing = repository && findEnclosingWorktree(repository.worktrees, cwd);
@@ -113,7 +112,7 @@ export const resolveLaunch = async (
   }
 
   const chosen = canPrompt
-    ? await pick({ repository, config, palette: createPalette(config.color), cwd })
+    ? await choose({ repository, config, cwd, git })
     : implicitTarget(repository, enclosing);
 
   if (chosen === undefined) {

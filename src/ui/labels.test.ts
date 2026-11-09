@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Worktree } from '../git/repository.ts';
 import { createPalette } from '../terminal/palette.ts';
-import { worktreeDetails, worktreeLabel } from './labels.ts';
+import { removalFailureNotice, removalQuestion, worktreeDetails, worktreeLabel } from './labels.ts';
 
 const palette = createPalette('never');
 
@@ -41,5 +41,36 @@ describe('worktreeLabel', () => {
 
   it('appends the details after the name', () => {
     expect(worktreeLabel(worktree(), palette)).toBe('api  feat/api · 2 days ago');
+  });
+});
+
+describe('removalQuestion', () => {
+  const web = worktree({ path: '/repo-wt/web' });
+
+  it('names the single worktree, and what survives it', () => {
+    expect(removalQuestion([worktree()], false)).toBe('Remove api? Its directory goes, its branch stays.');
+  });
+
+  it('counts worktrees instead of naming them all', () => {
+    expect(removalQuestion([worktree(), web], false)).toBe(
+      'Remove 2 worktrees? Their directories go, their branches stay.',
+    );
+  });
+
+  it('says what a forced removal also destroys', () => {
+    expect(removalQuestion([worktree()], true)).toBe(
+      'Remove api? Its directory and any uncommitted changes go, its branch stays.',
+    );
+    expect(removalQuestion([worktree(), web], true)).toBe(
+      'Remove 2 worktrees? Their directories and any uncommitted changes go, their branches stay.',
+    );
+  });
+});
+
+describe('removalFailureNotice', () => {
+  it('leads with the worktree name, then the words git used', () => {
+    expect(removalFailureNotice({ path: '/repo-wt/api', reason: "fatal: '/repo-wt/api' is locked" })).toBe(
+      "api: fatal: '/repo-wt/api' is locked",
+    );
   });
 });

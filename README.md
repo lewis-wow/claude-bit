@@ -16,8 +16,11 @@ one, and hands over to `claude` with your own arguments appended.
 │  + Create new worktree…
 │  feat-config           feat/config · 2 hours ago
 │  fix-title             fix/title · yesterday
+│  - Remove worktree…
 └
 ```
+
+The last entry cleans up after you — see [Removing worktrees](#removing-worktrees).
 
 ## Run it
 
@@ -90,9 +93,19 @@ during `npx github:...` and npm ships with Node while pnpm may not be installed 
 `.nvmrc` pins Node 26, the current Active LTS ("Lithium"). The test suite and build are verified
 on both 26 and 24.
 
-Running the TypeScript entry point directly (`node src/cli.ts`) additionally needs Node 22.18 or
-newer, which is where type stripping arrived. The published package does not — it ships compiled
-JavaScript, because Node refuses to strip types for files under `node_modules`.
+`pnpm run dev` is that entry point run straight from source — `node src/cli.ts`, no build step,
+Node stripping the types as it loads them. Arguments pass through it like any other invocation
+(`pnpm run dev -- --model opus`), and it exits with whatever `claude` exited with. It always runs
+in the repository root, because that is where `pnpm run` puts you; to try the picker against some
+_other_ repository, call the entry point by path from there instead:
+
+```sh
+cd ~/some/other/repo && node ~/code/claude-bit/src/cli.ts
+```
+
+Running the TypeScript entry point directly this way additionally needs Node 22.18 or newer, which
+is where type stripping arrived. The published package does not — it ships compiled JavaScript,
+because Node refuses to strip types for files under `node_modules`.
 
 ## How it decides
 
@@ -109,6 +122,41 @@ Arguments you type are always forwarded last, so they override anything the wrap
 ```sh
 claude-bit --model opus "explain the picker"
 ```
+
+## Removing worktrees
+
+Worktrees pile up, and `git worktree remove` is a path away from the one you want. The picker's
+last entry takes care of it: pick the worktrees to remove, confirm, and the picker reopens on
+what is left so you can still choose where to run.
+
+```
+┌  Which worktrees should be removed?
+│
+◆  ◼ feat-config         feat/config · 2 hours ago
+│  ◻ fix-title           fix/title · yesterday
+└
+◆  Remove feat-config? Its directory goes, its branch stays.
+│  ○ Yes / ● No
+└
+```
+
+Only the worktree's directory goes; the branch stays, so nothing you committed is lost. Two
+worktrees are never offered, because removing them is either impossible or hostile:
+
+- the **main checkout** — git refuses to remove it anyway;
+- the worktree you are **standing in** — removing it would delete the directory you are sitting in.
+
+A [bare layout](#repository-layouts) has no main checkout, so only the second rule applies there:
+`proj/main` is an ordinary linked worktree and can be removed like any other. The repository keeps
+working if you do.
+
+A worktree with uncommitted or untracked changes is refused by git, and the picker reopens with
+git's own reason above the list. Set `worktree.forceRemove` if you would rather it went anyway —
+the confirmation then says so, because that is the one case where removal costs you work. Set
+`picker.removeWorktreeLabel` to `null` to hide the entry entirely.
+
+Escape quits, as it does everywhere else in the picker. To back out of a removal without quitting,
+select nothing, or answer no.
 
 ## Configuration
 
@@ -144,22 +192,25 @@ so a typo never passes silently.
 
 ### Options
 
-| Key                          | Default                              | Meaning                                                                                             |
-| ---------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `command`                    | `"claude"`                           | Executable to launch.                                                                               |
-| `args`                       | `["--dangerously-skip-permissions"]` | Flags added to every launch, before yours.                                                          |
-| `resumeExistingSession`      | `true`                               | Add `--continue` when the worktree already has a conversation.                                      |
-| `sessionsDirectory`          | `null`                               | Where Claude Code keeps transcripts. `null` means `~/.claude/projects`; a leading `~/` is expanded. |
-| `color`                      | `"auto"`                             | `auto` \| `always` \| `never`. `auto` honours `NO_COLOR`.                                           |
-| `picker.enabled`             | `true`                               | Turn the picker off entirely.                                                                       |
-| `picker.message`             | `"Where should Claude run?"`         | Prompt above the list.                                                                              |
-| `picker.maxItems`            | `12`                                 | Rows shown before the list scrolls.                                                                 |
-| `picker.createWorktreeLabel` | `"+ Create new worktree…"`           | Label of the create entry.                                                                          |
-| `picker.passthroughFlags`    | see `schema.json`                    | Arguments that mean "skip the picker".                                                              |
-| `worktree.namePlaceholder`   | `"feat/my-thing"`                    | Placeholder in the name prompt.                                                                     |
-| `worktree.args`              | `[]`                                 | Flags used only when creating a worktree, e.g. `["--tmux"]`.                                        |
-| `terminal.title`             | `"{worktree} · {branch}"`            | Window title, or `null` to leave the title alone.                                                   |
-| `terminal.sessionName`       | `"{worktree}"`                       | Passed to `claude --name`, or `null` to omit it.                                                    |
+| Key                          | Default                                | Meaning                                                                                             |
+| ---------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `command`                    | `"claude"`                             | Executable to launch.                                                                               |
+| `args`                       | `["--dangerously-skip-permissions"]`   | Flags added to every launch, before yours.                                                          |
+| `resumeExistingSession`      | `true`                                 | Add `--continue` when the worktree already has a conversation.                                      |
+| `sessionsDirectory`          | `null`                                 | Where Claude Code keeps transcripts. `null` means `~/.claude/projects`; a leading `~/` is expanded. |
+| `color`                      | `"auto"`                               | `auto` \| `always` \| `never`. `auto` honours `NO_COLOR`.                                           |
+| `picker.enabled`             | `true`                                 | Turn the picker off entirely.                                                                       |
+| `picker.message`             | `"Where should Claude run?"`           | Prompt above the list.                                                                              |
+| `picker.maxItems`            | `12`                                   | Rows shown before the list scrolls.                                                                 |
+| `picker.createWorktreeLabel` | `"+ Create new worktree…"`             | Label of the create entry.                                                                          |
+| `picker.removeWorktreeLabel` | `"- Remove worktree…"`                 | Label of the remove entry, or `null` to hide it.                                                    |
+| `picker.removeMessage`       | `"Which worktrees should be removed?"` | Prompt above the list of removable worktrees.                                                       |
+| `picker.passthroughFlags`    | see `schema.json`                      | Arguments that mean "skip the picker".                                                              |
+| `worktree.namePlaceholder`   | `"feat/my-thing"`                      | Placeholder in the name prompt.                                                                     |
+| `worktree.args`              | `[]`                                   | Flags used only when creating a worktree, e.g. `["--tmux"]`.                                        |
+| `worktree.forceRemove`       | `false`                                | Remove a worktree even when it still holds uncommitted or untracked changes.                        |
+| `terminal.title`             | `"{worktree} · {branch}"`              | Window title, or `null` to leave the title alone.                                                   |
+| `terminal.sessionName`       | `"{worktree}"`                         | Passed to `claude --name`, or `null` to omit it.                                                    |
 
 Both templates understand `{worktree}`, `{branch}`, `{repo}` and `{path}`. A token with no value
 disappears along with the separator beside it, so a detached worktree reads `api`, not `api · `.
@@ -271,13 +322,16 @@ src/
     git.ts           the git runner, injectable so nothing needs a real repo to test
     porcelain.ts     pure parsers for git's machine-readable output
     repository.ts    worktrees, ordered the way the picker wants them
+    removeWorktrees.ts  the one mutation: git worktree remove, refusals collected
   terminal/
     palette.ts       colour roles, backed by picocolors
     title.ts         title templates and the escape sequence that carries them
     colorMode.ts     Auto | Always | Never
     titleToken.ts    Worktree | Branch | Repo | Path
   ui/
-    picker.ts        the interactive chooser
+    picker.ts        all the prompting; one Choice comes back
+    chooseTarget.ts  asks until the answer is a worktree, removing in between
+    choiceKind.ts    Launch | Removal
     labels.ts        how a worktree reads in the list
 ```
 
@@ -295,6 +349,7 @@ is in [docs/conventions.md](docs/conventions.md).
 ## Development
 
 ```sh
+pnpm run dev          # run the CLI from source — node src/cli.ts, no build step
 pnpm run check        # format, lint, typecheck, test, build
 pnpm test             # vitest
 pnpm run typecheck    # tsgo (TypeScript's native port)

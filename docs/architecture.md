@@ -8,10 +8,12 @@ Why the code is shaped the way it is. Source files carry no comments by
 One invocation is a straight line:
 
 ```
-cli.ts          read the process: argv, cwd, whether both ends are a terminal
-  app.ts        find the repository, load config, choose a worktree
-    plan.ts     turn that choice into the exact command to run
-  launcher.ts   spawn it, mirror its exit status
+cli.ts              read the process: argv, cwd, whether both ends are a terminal
+  app.ts            find the repository, load config, choose a worktree
+    chooseTarget.ts ask until the answer is a worktree
+      picker.ts     all the prompting; one Choice comes back
+    plan.ts         turn that choice into the exact command to run
+  launcher.ts       spawn it, mirror its exit status
 ```
 
 Everything above `launcher.ts` is a decision. `resolveLaunch` returns a `Launch`
@@ -22,6 +24,39 @@ This is what makes the behaviour that actually matters testable. Which flags
 Claude receives, and in what order, is checked by asserting on a plain object,
 not by running the real binary and reading its output.
 
+## Choosing is a loop, because removing is not an answer
+
+`picker.ts` owns the prompting — the list, and the two prompts behind the remove entry — and
+however many questions it asks, it answers with a single `Choice`: either a worktree to launch in
+or a set of worktrees to remove. Removing is not somewhere Claude can run, so it cannot end the
+flow: `chooseTarget` performs the removal and asks again, with a repository re-read from git so
+the list no longer shows what is gone. The loop ends the only two ways it can — a worktree to
+launch in, or a cancellation.
+
+Escape still means **quit**, at every prompt, as it already did in the name prompt behind the
+create entry. Backing out of a removal is a different gesture: select nothing, or answer no, and
+the loop comes round again having changed nothing.
+
+That split is also why the picker never runs git itself. It renders choices and reads keys;
+`chooseTarget` owns the one mutation this program makes, and `app.ts` injects it as `choose`, so
+the loop is covered by tests that fake the prompt and the git runner.
+
+Two worktrees are never offered for removal, and the reason is not politeness:
+
+- the **main checkout** — `git worktree remove` refuses it outright;
+- the **enclosing worktree** — git would happily delete the directory the user is standing in.
+
+In a bare layout there is no main checkout, so only the second rule applies and `proj/main` is as
+removable as any other worktree. That is git's own model, not an oversight: `main` there is an
+ordinary linked worktree, and removing it leaves the repository working, because `root` is derived
+from the worktree list on the next read rather than remembered.
+
+A refusal is not fatal. `git worktree remove` fails per worktree — most often because the tree
+still holds uncommitted or untracked changes — so `removeWorktrees` removes what it can, collects
+the rest, and the loop hands git's own wording back to the picker as a notice above the next
+question. Nothing else in this program turns a git failure into a message the user can act on;
+here the user is mid-task and a crash would lose the session they were about to start.
+
 ## Dependency injection, and where it stops
 
 `resolveLaunch` takes a `Dependencies` object defaulted to the real
@@ -31,6 +66,11 @@ picker never opens during a test run.
 
 Injection stops at the boundary. Inside `plan.ts` there is nothing to inject,
 because it is pure: data in, data out.
+
+`chooseTarget` is the one decision that also writes: removing a worktree changes the repository.
+It takes the git runner it was given rather than reaching for one, and defaults its prompt to the
+real picker, so a test drives the whole loop — removals, refusals, re-reads — without a terminal
+and against a fake repository.
 
 ## Repository identity vs. repository root
 
