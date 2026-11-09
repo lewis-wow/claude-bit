@@ -64,6 +64,16 @@
           "description": "Label of the entry that creates a new worktree.",
           "type": "string"
         },
+        "removeWorktreeLabel": {
+          "default": "- Remove worktree…",
+          "description": "Label of the entry that removes worktrees. Null hides it, so nothing can be removed.",
+          "type": ["string", "null"]
+        },
+        "removeMessage": {
+          "default": "Which worktrees should be removed?",
+          "description": "Prompt shown above the list of removable worktrees.",
+          "type": "string"
+        },
         "passthroughFlags": {
           "default": [
             "-c",
@@ -106,10 +116,15 @@
           "items": {
             "type": "string"
           }
+        },
+        "forceRemove": {
+          "default": false,
+          "description": "Remove a worktree even when it still holds uncommitted or untracked changes.",
+          "type": "boolean"
         }
       },
       "additionalProperties": false,
-      "description": "How new worktrees are created."
+      "description": "How worktrees are created and removed."
     },
     "terminal": {
       "default": {},
