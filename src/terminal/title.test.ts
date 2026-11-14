@@ -2,41 +2,35 @@ import { PassThrough } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
-import { renderTitleTemplate, setTerminalTitle, terminalTitleSequence } from './title.ts';
+import { composeTitle, setTerminalTitle, terminalTitleSequence } from './title.ts';
 
-describe('renderTitleTemplate', () => {
-  it('substitutes known tokens', () => {
-    expect(renderTitleTemplate('{worktree} · {branch}', { worktree: 'api', branch: 'feat/x' })).toBe(
-      'api · feat/x',
-    );
+describe('composeTitle', () => {
+  it('joins the parts it was given', () => {
+    expect(composeTitle(['api', 'feat/x'])).toBe('api · feat/x');
   });
 
-  it('drops the separator when a token has no value', () => {
-    expect(renderTitleTemplate('{worktree} · {branch}', { worktree: 'api', branch: undefined })).toBe('api');
+  it('drops the separator when a part is missing', () => {
+    expect(composeTitle(['api', undefined])).toBe('api');
   });
 
-  it('drops a leading separator when the first token is empty', () => {
-    expect(renderTitleTemplate('{branch} · {worktree}', { branch: undefined, worktree: 'api' })).toBe('api');
+  it('drops a leading separator when the first part is missing', () => {
+    expect(composeTitle([undefined, 'api'])).toBe('api');
   });
 
-  it('collapses separators between several empty tokens', () => {
-    expect(renderTitleTemplate('{repo} · {branch} · {worktree}', { worktree: 'api' })).toBe('api');
+  it('collapses the separators between several missing parts', () => {
+    expect(composeTitle([undefined, undefined, 'api'])).toBe('api');
   });
 
-  it('leaves an unknown token visible so a typo is obvious', () => {
-    expect(renderTitleTemplate('{worktre}', { worktree: 'api' })).toBe('{worktre}');
-  });
-
-  it('keeps literal text around the tokens', () => {
-    expect(renderTitleTemplate('claude: {worktree}', { worktree: 'api' })).toBe('claude: api');
+  it('ignores a part that is only whitespace', () => {
+    expect(composeTitle(['api', '   '])).toBe('api');
   });
 
   it('does not trim dashes that belong to a branch name', () => {
-    expect(renderTitleTemplate('{branch}', { branch: 'feat/my-thing' })).toBe('feat/my-thing');
+    expect(composeTitle(['feat/my-thing'])).toBe('feat/my-thing');
   });
 
-  it('returns an empty string when every token is empty', () => {
-    expect(renderTitleTemplate('{worktree} · {branch}', {})).toBe('');
+  it('returns an empty string when every part is missing', () => {
+    expect(composeTitle([undefined, undefined])).toBe('');
   });
 });
 

@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { defaultConfig } from '../config/schema.ts';
-import type { Config } from '../config/schema.ts';
+import { ChangeType } from '../changeType.ts';
+import { sessionColorFor } from '../terminal/sessionColor.ts';
 import { planLaunch, usesPassthroughFlag } from './plan.ts';
 import { TargetKind } from './targetKind.ts';
 
-const config = (overrides: Partial<Config> = {}): Config => ({ ...defaultConfig(), ...overrides });
-
-const REPOSITORY = { root: '/repo', directory: '/repo' };
+const REPOSITORY_ROOT = '/repo';
 
 const existingWorktree = {
   kind: TargetKind.Existing,
@@ -16,39 +14,42 @@ const existingWorktree = {
   hasStoredSession: false,
 };
 
-describe('usesPassthroughFlag', () => {
-  const flags = ['-c', '--continue', '--from-pr'];
+const newWorktree = { kind: TargetKind.New, name: 'feat/thing' } as const;
 
+const plan = (
+  target: Parameters<typeof planLaunch>[0]['target'] = existingWorktree,
+  forwardedArgs: readonly string[] = [],
+) => planLaunch({ repositoryRoot: REPOSITORY_ROOT, target, forwardedArgs });
+
+describe('usesPassthroughFlag', () => {
   it('detects a bare flag', () => {
-    expect(usesPassthroughFlag(['-c'], flags)).toBe(true);
+    expect(usesPassthroughFlag(['-c'])).toBe(true);
   });
 
   it('detects a flag written with an inline value', () => {
-    expect(usesPassthroughFlag(['--from-pr=123'], flags)).toBe(true);
+    expect(usesPassthroughFlag(['--from-pr=123'])).toBe(true);
   });
 
   it('ignores arguments that merely start with a flag name', () => {
-    expect(usesPassthroughFlag(['--continuous'], flags)).toBe(false);
+    expect(usesPassthroughFlag(['--continuous'])).toBe(false);
   });
 
   it('ignores a prompt that happens to contain a flag name', () => {
-    expect(usesPassthroughFlag(['fix the -c handling'], flags)).toBe(false);
+    expect(usesPassthroughFlag(['fix the -c handling'])).toBe(false);
   });
 
   it('is false for an empty argv', () => {
-    expect(usesPassthroughFlag([], flags)).toBe(false);
+    expect(usesPassthroughFlag([])).toBe(false);
   });
 });
 
 describe('planLaunch for an existing worktree', () => {
-  const plan = (overrides: Parameters<typeof planLaunch>[0]['target'] = existingWorktree) =>
-    planLaunch({ config: config(), repository: REPOSITORY, target: overrides, forwardedArgs: [] });
-
-  it('runs in the worktree directory', () => {
+  it('runs claude in the worktree directory', () => {
+    expect(plan().command).toBe('claude');
     expect(plan().cwd).toBe('/repo-wt/api');
   });
 
-  it('starts with the configured base arguments', () => {
+  it('starts with the base arguments', () => {
     expect(plan().args[0]).toBe('--dangerously-skip-permissions');
   });
 
@@ -58,17 +59,6 @@ describe('planLaunch for an existing worktree', () => {
 
   it('does not continue when the worktree has no stored session', () => {
     expect(plan().args).not.toContain('--continue');
-  });
-
-  it('does not continue when resuming is turned off', () => {
-    const launch = planLaunch({
-      config: config({ resumeExistingSession: false }),
-      repository: REPOSITORY,
-      target: { ...existingWorktree, hasStoredSession: true },
-      forwardedArgs: [],
-    });
-
-    expect(launch.args).not.toContain('--continue');
   });
 
   it('names the session after the worktree directory', () => {
@@ -84,88 +74,48 @@ describe('planLaunch for an existing worktree', () => {
   });
 
   it('puts forwarded arguments last so they win', () => {
-    const launch = planLaunch({
-      config: config(),
-      repository: REPOSITORY,
-      target: existingWorktree,
-      forwardedArgs: ['--model', 'opus'],
-    });
-
-    expect(launch.args.slice(-2)).toEqual(['--model', 'opus']);
+    expect(plan(existingWorktree, ['--model', 'opus']).args.slice(-2)).toEqual(['--model', 'opus']);
   });
 });
 
 describe('planLaunch for a new worktree', () => {
-  const target = { kind: TargetKind.New, name: 'feat/thing' };
-
-  const plan = (overrides: Partial<Config> = {}) =>
-    planLaunch({ config: config(overrides), repository: REPOSITORY, target, forwardedArgs: [] });
-
   it('runs from the main checkout, where git can create the worktree', () => {
-    expect(plan().cwd).toBe('/repo');
+    expect(plan(newWorktree).cwd).toBe(REPOSITORY_ROOT);
   });
 
-  it('asks claude to create the worktree', () => {
-    expect(plan().args).toEqual(expect.arrayContaining(['--worktree', 'feat/thing']));
+  it('asks claude for the worktree by name', () => {
+    expect(plan(newWorktree).args).toEqual(expect.arrayContaining(['--worktree', 'feat/thing']));
   });
 
   it('never continues a session, because the worktree does not exist yet', () => {
-    expect(plan().args).not.toContain('--continue');
-  });
-
-  it('appends the configured worktree-only arguments', () => {
-    const launch = plan({ worktree: { namePlaceholder: 'x', args: ['--tmux'], forceRemove: false } });
-
-    expect(launch.args).toContain('--tmux');
+    expect(plan(newWorktree).args).not.toContain('--continue');
   });
 
   it('titles the terminal after the requested name', () => {
-    expect(plan().title).toBe('feat/thing');
+    expect(plan(newWorktree).title).toBe('feat/thing');
   });
 });
 
-describe('planLaunch template configuration', () => {
-  it('omits --name when the session name template is null', () => {
-    const launch = planLaunch({
-      config: config({ terminal: { title: '{worktree}', sessionName: null } }),
-      repository: REPOSITORY,
-      target: existingWorktree,
-      forwardedArgs: [],
-    });
+describe('planLaunch session colour', () => {
+  it('colours a worktree after the kind of change it holds', () => {
+    const target = { ...existingWorktree, path: '/repo-wt/feat+retry', branch: 'feat/retry' };
 
-    expect(launch.args).not.toContain('--name');
+    expect(plan(target).color).toEqual(sessionColorFor('x', ChangeType.Feat));
   });
 
-  it('leaves the title unset when the title template is null', () => {
-    const launch = planLaunch({
-      config: config({ terminal: { title: null, sessionName: '{worktree}' } }),
-      repository: REPOSITORY,
-      target: existingWorktree,
-      forwardedArgs: [],
-    });
+  it('reads the type off the branch when the directory name lost it', () => {
+    const target = { ...existingWorktree, path: '/repo-wt/retry', branch: 'fix/retry' };
 
-    expect(launch.title).toBeUndefined();
+    expect(plan(target).color).toEqual(sessionColorFor('x', ChangeType.Fix));
   });
 
-  it('supports the repo and path tokens', () => {
-    const launch = planLaunch({
-      config: config({ terminal: { title: '{repo}: {worktree} ({path})', sessionName: null } }),
-      repository: REPOSITORY,
-      target: existingWorktree,
-      forwardedArgs: [],
-    });
+  it('gives a worktree that names no type a quieter colour of its own', () => {
+    const target = { ...existingWorktree, path: '/repo-wt/spike', branch: 'spike' };
 
-    expect(launch.title).toBe('repo: api (/repo-wt/api)');
+    expect(plan(target).color).toEqual(sessionColorFor('spike', undefined));
   });
 
-  it('uses the configured command', () => {
-    expect(
-      planLaunch({
-        config: config({ command: 'claude-next' }),
-        repository: REPOSITORY,
-        target: existingWorktree,
-        forwardedArgs: [],
-      }).command,
-    ).toBe('claude-next');
+  it('colours a new worktree after the type chosen for it', () => {
+    expect(plan(newWorktree).color).toEqual(sessionColorFor('x', ChangeType.Feat));
   });
 });

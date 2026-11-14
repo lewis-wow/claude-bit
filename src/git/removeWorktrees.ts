@@ -9,7 +9,6 @@ export type RemoveWorktreesOptions = {
   git: GitRunner;
   cwd: string;
   paths: readonly string[];
-  force: boolean;
 };
 
 const UNEXPLAINED_REFUSAL = 'git refused to remove the worktree';
@@ -24,10 +23,10 @@ const refusalReason = (error: unknown) => {
   return lines.find((line) => line.startsWith(GIT_FATAL_PREFIX)) ?? lines.at(-1) ?? UNEXPLAINED_REFUSAL;
 };
 
-export const removeWorktrees = ({ git, cwd, paths, force }: RemoveWorktreesOptions): RemovalFailure[] =>
+export const removeWorktrees = ({ git, cwd, paths }: RemoveWorktreesOptions): RemovalFailure[] =>
   paths.flatMap((path) => {
     try {
-      git(['worktree', 'remove', ...(force ? ['--force'] : []), path], { cwd });
+      git(['worktree', 'remove', path], { cwd });
 
       return [];
     } catch (error) {

@@ -23,7 +23,7 @@ const main = async () => {
 try {
   await main();
 } catch (error) {
-  const palette = createPalette('auto');
+  const palette = createPalette();
 
   console.error(palette.error(error instanceof Error ? error.message : String(error)));
   process.exit(1);

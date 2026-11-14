@@ -1,9 +1,7 @@
 import { planLaunch, usesPassthroughFlag } from './claude/plan.ts';
 import type { Launch, LaunchTarget } from './claude/plan.ts';
-import { defaultSessionsDirectory, expandHome, hasStoredSession } from './claude/sessions.ts';
+import { defaultSessionsDirectory, hasStoredSession } from './claude/sessions.ts';
 import { TargetKind } from './claude/targetKind.ts';
-import { loadConfig } from './config/load.ts';
-import type { Config } from './config/schema.ts';
 import { runGit } from './git/git.ts';
 import type { GitRunner } from './git/git.ts';
 import { findEnclosingWorktree, openRepository } from './git/repository.ts';
@@ -21,14 +19,12 @@ type SessionLookup = typeof hasStoredSession;
 
 export type Dependencies = {
   git: GitRunner;
-  readConfig: typeof loadConfig;
   hasSession: SessionLookup;
   choose: typeof chooseTarget;
 };
 
 const defaultDependencies: Dependencies = {
   git: runGit,
-  readConfig: loadConfig,
   hasSession: hasStoredSession,
   choose: chooseTarget,
 };
@@ -36,9 +32,6 @@ const defaultDependencies: Dependencies = {
 export type Resolution =
   | { kind: typeof ResolutionKind.Launch; launch: Launch }
   | { kind: typeof ResolutionKind.Cancelled };
-
-const sessionsDirectoryFor = (config: Config) =>
-  config.sessionsDirectory === null ? defaultSessionsDirectory() : expandHome(config.sessionsDirectory);
 
 const implicitTarget = (repository: Repository, enclosing: Worktree | undefined): LaunchTarget => {
   const worktree = enclosing ?? repository.worktrees.find((candidate) => candidate.isMainCheckout);
@@ -51,69 +44,45 @@ const implicitTarget = (repository: Repository, enclosing: Worktree | undefined)
   };
 };
 
-const withSessionState = (
-  target: LaunchTarget,
-  { config, hasSession, passesThrough }: SessionState,
-): LaunchTarget =>
+const withSessionState = (target: LaunchTarget, { hasSession, passesThrough }: SessionState): LaunchTarget =>
   target.kind === TargetKind.New
     ? target
     : {
         ...target,
-        hasStoredSession: !passesThrough && hasSession(target.path, sessionsDirectoryFor(config)),
+        hasStoredSession: !passesThrough && hasSession(target.path, defaultSessionsDirectory()),
       };
 
-type SessionState = { config: Config; hasSession: SessionLookup; passesThrough: boolean };
-
-const launchOutsideRepository = ({
-  config,
-  cwd,
-  forwardedArgs,
-  sessionState,
-}: {
-  config: Config;
-  cwd: string;
-  forwardedArgs: readonly string[];
-  sessionState: SessionState;
-}): Resolution => ({
-  kind: ResolutionKind.Launch,
-  launch: planLaunch({
-    config,
-    repository: { root: cwd, directory: cwd },
-    target: withSessionState(
-      { kind: TargetKind.Existing, path: cwd, branch: undefined, hasStoredSession: false },
-      sessionState,
-    ),
-    forwardedArgs,
-  }),
-});
+type SessionState = { hasSession: SessionLookup; passesThrough: boolean };
 
 export const resolveLaunch = async (
   { argv, cwd, isInteractive }: RunOptions,
   dependencies: Partial<Dependencies> = {},
 ): Promise<Resolution> => {
-  const { git, readConfig, hasSession, choose } = { ...defaultDependencies, ...dependencies };
+  const { git, hasSession, choose } = { ...defaultDependencies, ...dependencies };
 
   const repository = openRepository({ git, cwd });
   const enclosing = repository && findEnclosingWorktree(repository.worktrees, cwd);
-  const primaryWorktree = repository?.worktrees.find((worktree) => worktree.isMainCheckout);
-  const { config } = readConfig({
-    cwd,
-    repositoryRoot: primaryWorktree?.path,
-    worktreeRoot: enclosing?.path,
-  });
 
-  const passesThrough = usesPassthroughFlag(argv, config.picker.passthroughFlags);
-  const canPrompt = isInteractive && config.picker.enabled && !passesThrough;
+  const passesThrough = usesPassthroughFlag(argv);
+  const canPrompt = isInteractive && !passesThrough;
 
-  const sessionState = { config, hasSession, passesThrough };
+  const sessionState = { hasSession, passesThrough };
 
   if (repository === undefined) {
-    return launchOutsideRepository({ config, cwd, forwardedArgs: argv, sessionState });
+    return {
+      kind: ResolutionKind.Launch,
+      launch: planLaunch({
+        repositoryRoot: cwd,
+        target: withSessionState(
+          { kind: TargetKind.Existing, path: cwd, branch: undefined, hasStoredSession: false },
+          sessionState,
+        ),
+        forwardedArgs: argv,
+      }),
+    };
   }
 
-  const chosen = canPrompt
-    ? await choose({ repository, config, cwd, git })
-    : implicitTarget(repository, enclosing);
+  const chosen = canPrompt ? await choose({ repository, cwd, git }) : implicitTarget(repository, enclosing);
 
   if (chosen === undefined) {
     return { kind: ResolutionKind.Cancelled };
@@ -122,8 +91,7 @@ export const resolveLaunch = async (
   return {
     kind: ResolutionKind.Launch,
     launch: planLaunch({
-      config,
-      repository,
+      repositoryRoot: repository.root,
       target: withSessionState(chosen, sessionState),
       forwardedArgs: argv,
     }),

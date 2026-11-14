@@ -1,13 +1,23 @@
-import { confirm, isCancel, log, multiselect, select, text } from '@clack/prompts';
+import { confirm, isCancel, log, multiselect, note, select, text } from '@clack/prompts';
 
 import type { LaunchTarget } from '../claude/plan.ts';
 import { TargetKind } from '../claude/targetKind.ts';
-import type { Config } from '../config/schema.ts';
 import { findEnclosingWorktree, removableWorktrees } from '../git/repository.ts';
 import type { Repository, Worktree } from '../git/repository.ts';
 import type { Palette } from '../terminal/palette.ts';
 import { ChoiceKind } from './choiceKind.ts';
-import { removalQuestion, worktreeLabel } from './labels.ts';
+import { changeTypeCatalogue, removalQuestion, worktreeLabel, worktreeNameRequirement } from './labels.ts';
+
+const PICK_MESSAGE = 'Where should Claude run?';
+const REMOVE_MESSAGE = 'Which worktrees should be removed?';
+const CREATE_LABEL = '+  Create new worktree…';
+const CREATE_HINT = 'asks for a name';
+const REMOVE_LABEL = '×  Remove worktrees…';
+const REMOVE_HINT = 'asks which, then confirms';
+const CHANGE_TYPE_TITLE = 'Name it after what it changes';
+const NEW_WORKTREE_MESSAGE = 'New worktree name';
+const NEW_WORKTREE_PLACEHOLDER = 'feat/retry-logic';
+const MAX_ITEMS = 12;
 
 const CREATE_NEW_WORKTREE = Symbol('create-new-worktree');
 const REMOVE_WORKTREES = Symbol('remove-worktrees');
@@ -20,7 +30,6 @@ export type Choice =
 
 type PickTargetOptions = {
   repository: Repository;
-  config: Config;
   palette: Palette;
   cwd: string;
   notices?: readonly string[];
@@ -45,11 +54,13 @@ const toTarget = (worktree: Worktree): LaunchTarget => ({
   hasStoredSession: false,
 });
 
-const promptForNewWorktree = async (config: Config): Promise<Choice | undefined> => {
+const promptForNewWorktree = async (palette: Palette): Promise<Choice | undefined> => {
+  note(changeTypeCatalogue(palette), CHANGE_TYPE_TITLE);
+
   const name = await text({
-    message: 'New worktree name',
-    placeholder: config.worktree.namePlaceholder,
-    validate: (value) => ((value ?? '').trim().length === 0 ? 'Name is required' : undefined),
+    message: NEW_WORKTREE_MESSAGE,
+    placeholder: NEW_WORKTREE_PLACEHOLDER,
+    validate: worktreeNameRequirement,
   });
 
   return isCancel(name) ? undefined : launchChoice({ kind: TargetKind.New, name: name.trim() });
@@ -57,11 +68,11 @@ const promptForNewWorktree = async (config: Config): Promise<Choice | undefined>
 
 const promptForRemoval = async (
   removable: readonly Worktree[],
-  { config, palette }: Pick<PickTargetOptions, 'config' | 'palette'>,
+  palette: Palette,
 ): Promise<Choice | undefined> => {
   const selection = await multiselect<string>({
-    message: config.picker.removeMessage,
-    maxItems: config.picker.maxItems,
+    message: REMOVE_MESSAGE,
+    maxItems: MAX_ITEMS,
     required: false,
     options: removable.map((worktree) => ({
       value: worktree.path,
@@ -80,7 +91,7 @@ const promptForRemoval = async (
   }
 
   const confirmed = await confirm({
-    message: removalQuestion(chosen, config.worktree.forceRemove),
+    message: removalQuestion(chosen),
     initialValue: false,
   });
 
@@ -93,22 +104,31 @@ const promptForRemoval = async (
     : NOTHING_REMOVED;
 };
 
-type RemovalEntry = { value: typeof REMOVE_WORKTREES; label: string };
+type Option = { value: Entry; label: string; hint?: string };
 
-const removalEntry = (
-  removable: readonly Worktree[],
-  { config, palette }: PickTargetOptions,
-): RemovalEntry[] => {
-  const label = config.picker.removeWorktreeLabel;
-
-  return label === null || removable.length === 0
+const removalEntry = (removable: readonly Worktree[], palette: Palette): Option[] =>
+  removable.length === 0
     ? []
-    : [{ value: REMOVE_WORKTREES, label: palette.error(label) }];
-};
+    : [{ value: REMOVE_WORKTREES, label: palette.danger(REMOVE_LABEL), hint: REMOVE_HINT }];
 
-export const pickTarget = async (options: PickTargetOptions): Promise<Choice | undefined> => {
-  const { repository, config, palette, cwd, notices = [] } = options;
-  const [first, ...rest] = repository.worktrees;
+const entries = (
+  [first, ...rest]: readonly Worktree[],
+  removable: readonly Worktree[],
+  palette: Palette,
+): Option[] => [
+  ...(first === undefined ? [] : [{ value: first.path, label: worktreeLabel(first, palette) }]),
+  { value: CREATE_NEW_WORKTREE, label: palette.action(CREATE_LABEL), hint: CREATE_HINT },
+  ...rest.map((worktree) => ({ value: worktree.path, label: worktreeLabel(worktree, palette) })),
+  ...removalEntry(removable, palette),
+];
+
+export const pickTarget = async ({
+  repository,
+  palette,
+  cwd,
+  notices = [],
+}: PickTargetOptions): Promise<Choice | undefined> => {
+  const [first] = repository.worktrees;
 
   for (const notice of notices) log.error(notice);
 
@@ -119,18 +139,10 @@ export const pickTarget = async (options: PickTargetOptions): Promise<Choice | u
   const removable = removableWorktrees(repository.worktrees, cwd);
 
   const selection = await select<Entry>({
-    message: config.picker.message,
-    maxItems: config.picker.maxItems,
+    message: PICK_MESSAGE,
+    maxItems: MAX_ITEMS,
     initialValue: findEnclosingWorktree(repository.worktrees, cwd)?.path ?? first.path,
-    options: [
-      { value: first.path, label: worktreeLabel(first, palette) },
-      { value: CREATE_NEW_WORKTREE, label: palette.accent(config.picker.createWorktreeLabel) },
-      ...rest.map((worktree) => ({
-        value: worktree.path,
-        label: worktreeLabel(worktree, palette),
-      })),
-      ...removalEntry(removable, options),
-    ],
+    options: entries(repository.worktrees, removable, palette),
   });
 
   if (isCancel(selection)) {
@@ -138,11 +150,11 @@ export const pickTarget = async (options: PickTargetOptions): Promise<Choice | u
   }
 
   if (selection === CREATE_NEW_WORKTREE) {
-    return promptForNewWorktree(config);
+    return promptForNewWorktree(palette);
   }
 
   if (selection === REMOVE_WORKTREES) {
-    return promptForRemoval(removable, options);
+    return promptForRemoval(removable, palette);
   }
 
   const chosen = repository.worktrees.find((worktree) => worktree.path === selection);

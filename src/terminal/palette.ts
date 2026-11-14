@@ -1,28 +1,41 @@
-import pico from 'picocolors';
+import ansis, { Ansis } from 'ansis';
 
-import { ColorMode } from './colorMode.ts';
+import { ColorChannel } from './colorChannel.ts';
+import type { SessionColor } from './sessionColor.ts';
+
+const COLOR_OFF = 0;
+const TRUECOLOR = 3;
+
+export type Paint = (value: string) => string;
 
 export type Palette = {
-  accent: (value: string) => string;
-  muted: (value: string) => string;
-  strong: (value: string) => string;
-  error: (value: string) => string;
+  action: Paint;
+  danger: Paint;
+  muted: Paint;
+  strong: Paint;
+  error: Paint;
+  session: (color: SessionColor) => Paint;
 };
 
-export const shouldUseColor = (mode: ColorMode, supported = pico.isColorSupported): boolean => {
-  if (mode === ColorMode.Always) return true;
-  if (mode === ColorMode.Never) return false;
-
-  return supported;
+export type PaletteOptions = {
+  supported?: boolean;
 };
 
-export const createPalette = (mode: ColorMode, supported?: boolean): Palette => {
-  const colors = pico.createColors(shouldUseColor(mode, supported));
+const colorsFor = (supported: boolean | undefined) =>
+  supported === undefined ? ansis : new Ansis(supported ? TRUECOLOR : COLOR_OFF);
+
+export const createPalette = ({ supported }: PaletteOptions = {}): Palette => {
+  const colors = colorsFor(supported);
+
+  const session = (color: SessionColor): Paint =>
+    colors.rgb(color[ColorChannel.Red], color[ColorChannel.Green], color[ColorChannel.Blue]);
 
   return {
-    accent: colors.cyan,
+    action: (value) => colors.bold(colors.cyanBright(value)),
+    danger: (value) => colors.bold(colors.redBright(value)),
     muted: colors.dim,
     strong: colors.bold,
     error: colors.red,
+    session,
   };
 };

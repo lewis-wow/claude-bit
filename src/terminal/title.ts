@@ -1,36 +1,18 @@
 import type { Writable } from 'node:stream';
 
-import { TITLE_TOKENS } from './titleToken.ts';
-import type { TitleToken } from './titleToken.ts';
+import { BEL, OSC } from './controlCharacters.ts';
 
-export type TitleTokens = Partial<Record<TitleToken, string | undefined>>;
+const PART_SEPARATOR = ' · ';
+const SET_TITLE = '0';
 
-const TOKEN_PATTERN = /\{(\w+)\}/gu;
-const SEPARATORS = '·|';
-const ORPHANED_SEPARATOR = new RegExp(`\\s*[${SEPARATORS}]\\s*(?=[${SEPARATORS}])`, 'gu');
-const EDGE_SEPARATORS = new RegExp(`^[\\s${SEPARATORS}]+|[\\s${SEPARATORS}]+$`, 'gu');
+const isPresent = (part: string | undefined): part is string => part !== undefined && part.trim().length > 0;
 
-const isTitleToken = (name: string): name is TitleToken => (TITLE_TOKENS as readonly string[]).includes(name);
-
-const tidy = (value: string) =>
-  value
-    .replaceAll(/[^\S\n]+/gu, ' ')
-    .replaceAll(ORPHANED_SEPARATOR, '')
-    .replaceAll(EDGE_SEPARATORS, '');
-
-export const renderTitleTemplate = (template: string, tokens: TitleTokens): string =>
-  tidy(
-    template.replaceAll(TOKEN_PATTERN, (match, name: string) =>
-      isTitleToken(name) ? (tokens[name] ?? '') : match,
-    ),
-  );
-
-const OSC = '\u001B]';
-const BEL = '\u0007';
+export const composeTitle = (parts: readonly (string | undefined)[]): string =>
+  parts.filter(isPresent).join(PART_SEPARATOR);
 
 const sanitize = (title: string) => title.replaceAll(/\p{Cc}/gu, '').trim();
 
-export const terminalTitleSequence = (title: string): string => `${OSC}0;${sanitize(title)}${BEL}`;
+export const terminalTitleSequence = (title: string): string => `${OSC}${SET_TITLE};${sanitize(title)}${BEL}`;
 
 export const setTerminalTitle = (title: string, stream: Writable & { isTTY?: boolean }): boolean => {
   const sanitized = sanitize(title);

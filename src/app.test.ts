@@ -3,8 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { resolveLaunch } from './app.ts';
 import type { Dependencies, RunOptions } from './app.ts';
 import { TargetKind } from './claude/targetKind.ts';
-import { defaultConfig } from './config/schema.ts';
-import type { Config } from './config/schema.ts';
 import { COMMIT_FIELD_SEPARATOR } from './git/porcelain.ts';
 import { ResolutionKind } from './resolutionKind.ts';
 
@@ -37,16 +35,11 @@ const targetAt = (path: string, branch: string) => ({
   hasStoredSession: false,
 });
 
-const resolve = (
-  options: Partial<RunOptions> = {},
-  dependencies: Partial<Dependencies> = {},
-  config: Partial<Config> = {},
-) =>
+const resolve = (options: Partial<RunOptions> = {}, dependencies: Partial<Dependencies> = {}) =>
   resolveLaunch(
     { argv: [], cwd: '/repo', isInteractive: true, ...options },
     {
       git: gitInRepo(),
-      readConfig: () => ({ config: { ...defaultConfig(), ...config }, sources: [] }),
       hasSession: () => false,
       choose: async () => targetAt('/repo', 'main'),
       ...dependencies,
@@ -83,22 +76,10 @@ describe('resolveLaunch inside a repository', () => {
     expect(launch.args).toContain('--continue');
   });
 
-  it('scopes the config search to the repository', async () => {
-    const readConfig = vi.fn(() => ({ config: defaultConfig(), sources: [] }));
-    await resolve({}, { readConfig });
+  it('names the session after the chosen worktree', async () => {
+    const launch = await launchOf({}, { choose: async () => targetAt('/repo-wt/api', 'feat/api') });
 
-    expect(readConfig).toHaveBeenCalledWith(
-      expect.objectContaining({ repositoryRoot: '/repo', worktreeRoot: '/repo' }),
-    );
-  });
-
-  it('scopes the config search to the worktree the user is standing in', async () => {
-    const readConfig = vi.fn(() => ({ config: defaultConfig(), sources: [] }));
-    await resolve({ cwd: '/repo-wt/api/src' }, { readConfig });
-
-    expect(readConfig).toHaveBeenCalledWith(
-      expect.objectContaining({ repositoryRoot: '/repo', worktreeRoot: '/repo-wt/api' }),
-    );
+    expect(launch.args).toEqual(expect.arrayContaining(['--name', 'api']));
   });
 });
 
@@ -109,14 +90,6 @@ describe('resolveLaunch when prompting is impossible or unwanted', () => {
     const launch = await launchOf({ isInteractive: false }, noPicker);
 
     expect(noPicker.choose).not.toHaveBeenCalled();
-    expect(launch.cwd).toBe('/repo');
-  });
-
-  it('skips the picker when it is disabled in config', async () => {
-    const launch = await launchOf({}, noPicker, {
-      picker: { ...defaultConfig().picker, enabled: false },
-    });
-
     expect(launch.cwd).toBe('/repo');
   });
 
@@ -136,14 +109,14 @@ describe('resolveLaunch when prompting is impossible or unwanted', () => {
     const launch = await launchOf({ cwd: '/repo-wt/api/src', isInteractive: false }, noPicker);
 
     expect(launch.cwd).toBe('/repo-wt/api');
-    expect(launch.title).toBe('api · feat/api');
+    expect(launch.title).toContain('api · feat/api');
   });
 
   it('titles the main checkout with its branch when the cwd matches no worktree', async () => {
     const launch = await launchOf({ cwd: '/elsewhere', isInteractive: false }, noPicker);
 
     expect(launch.cwd).toBe('/repo');
-    expect(launch.title).toBe('repo · main');
+    expect(launch.title).toContain('repo · main');
   });
 });
 

@@ -12,11 +12,12 @@ test than in production:
 
 | What broke                                  | Test suite said | Reality                                                            |
 | ------------------------------------------- | --------------- | ------------------------------------------------------------------ |
-| `import { createColors } from 'picocolors'` | pass            | crash — picocolors is CJS; vitest resolves it, Node does not       |
+| `import { createColors } from 'picocolors'` | pass            | crash — that library was CJS; vitest resolved it, Node did not     |
 | `bin` pointing at `cli.ts`                  | pass            | crash once installed — Node will not strip types in `node_modules` |
 | Bare repository layout                      | pass            | picker offered `.bare`; no main checkout was ever detected         |
 | Repository with no commits                  | pass            | `git show` on the null object id is fatal                          |
 | Interactivity from `stdin.isTTY` alone      | pass            | `claude-bit > out.log` drew the prompt into the file               |
+| iTerm2's tab-colour sequence                | pass            | VS Code is xterm.js, which has no `OSC 6` — the tab stayed grey    |
 
 The pattern: **the suite exercises the decision layer, which is pure. The bugs
 were all at the edges it deliberately fakes.**
@@ -49,21 +50,24 @@ else), and a plain directory that is not a repository at all.
 
 ## Watching what gets spawned, without spawning Claude
 
-Point `command` at a stub and read back exactly what the wrapper decided:
+There is no config to point at a stub any more, so put one on `PATH` under the
+name the tool launches:
 
 ```sh
-cat > /tmp/fake-claude <<'SH'
+mkdir -p /tmp/stub
+cat > /tmp/stub/claude <<'SH'
 #!/bin/sh
 echo "CWD=$(pwd)"
 echo "ARGS=$*"
 exit 7
 SH
-chmod +x /tmp/fake-claude
-echo '{"command":"/tmp/fake-claude"}' > repo/claude-bit.json
+chmod +x /tmp/stub/claude
+PATH=/tmp/stub:$PATH claude-bit
 ```
 
 Exit code 7 coming back out confirms the wrapper mirrors the child's status
-rather than inventing one.
+rather than inventing one. To read the decision instead of the spawn, call
+`resolveLaunch` directly and print the `Launch` it returns.
 
 ## Driving the picker without a terminal
 
@@ -106,25 +110,32 @@ node probe.ts | cat -v        # shows ^[ and ^G
 To confirm the title sequence itself, `JSON.stringify` it rather than printing
 it.
 
-## Packaging
+## The copy
 
-The published package is not the repository. Test what a user actually gets:
+Nobody runs this repository; they run a copy of `src/` sitting in some other
+project. That copy is a different environment, and the suite cannot see it:
 
 ```sh
-npm pack --pack-destination /tmp/pack
-cd /tmp/consumer && npm init -y && npm install /tmp/pack/*.tgz
-./node_modules/.bin/claude-bit        # must run from node_modules
+mkdir -p /tmp/project/tools/claude-bit
+cp -R src/. /tmp/project/tools/claude-bit/
+cd /tmp/project && npm init -y && npm install @clack/prompts ansis
+cd ~/scratch/repo-feat && node /tmp/project/tools/claude-bit/cli.ts
 ```
 
-`npx /path/to/repo` is **not** this test — npx links the directory instead of
-installing it, so a `.ts` entry point appears to work. `pnpm dlx <tarball>` is
-a closer check; `npx git+file:///path/to/repo` additionally exercises
-`prepare`.
+`npm init -y` is the point of that test, not an accident: it writes a
+`package.json` with no `"type"`, which makes the project CommonJS. Without
+`src/package.json` saying `{ "type": "module" }`, Node parses the copied files
+as CommonJS and the first `import` throws `Cannot use import statement outside
+a module`. Running the entry point from this repository never shows it,
+because the root `package.json` already says `"type": "module"`.
 
-Confirm the tarball carries `dist/` and `schema.json` and nothing else:
+Also worth checking in the copy: that `claude` missing from `PATH` still says
+so rather than crashing.
 
 ```sh
-tar -tzf /tmp/pack/*.tgz
+cd /tmp/scratch && env -i PATH=/usr/bin:/bin "$(command -v node)" \
+  /tmp/project/tools/claude-bit/cli.ts
+# claude was not found on PATH
 ```
 
 ## Node versions
@@ -148,7 +159,13 @@ Both are verified to pass, as is 24 in between.
 - [ ] A passthrough flag (`--resume`) skips the picker and suppresses `--continue`
 - [ ] Removal offers neither the main checkout nor the worktree you are standing in
 - [ ] A dirty worktree is refused with git's own reason, and the picker reopens showing it
-- [ ] `worktree.forceRemove` removes it anyway; the branch survives either way
-- [ ] Config errors name the file that actually holds the bad value
-- [ ] Packed tarball installs and runs from `node_modules`
-- [ ] `schema.json` regenerates identically (`npm run schema`, then `git diff`)
+- [ ] A refused removal leaves the worktree alone; nothing ever passes `--force`
+- [ ] Each worktree keeps one colour across runs, in the picker and in the terminal
+- [ ] The cursor colour is sent only to a TTY, and handed back when Claude exits
+- [ ] `NO_COLOR` leaves the picker's labels plain
+- [ ] Create and remove brighten and show their hint when the cursor lands on them
+- [ ] Creating a worktree prints every type above the name prompt, and accepts a name without one
+- [ ] A typed worktree is vivid, a freely named one quiet; only an empty name is refused
+- [ ] A worktree's colour follows its type, from the directory name or the branch; untyped is grey
+- [ ] Session colours read as distinct on a dark terminal, and survive a 256-colour one
+- [ ] A copy of `src/` runs from a project that is CommonJS and has never seen this repository

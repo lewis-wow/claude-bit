@@ -21,9 +21,12 @@ In short, and without exception:
 - **No comments in source files.** Name things instead.
 - **Enums are `as const` objects**, one per file, type merged with the object. Never a bare
   string-literal union.
-- **No hand-written ANSI escapes.** Colour comes from `picocolors` via the roles in
+- **No hand-written ANSI escapes.** Colour comes from `ansis` via the roles in
   `src/terminal/palette.ts`; control characters live behind named constants.
-- **Everything configurable per project**, with defaults in the schema.
+- **No configuration.** No config file, no schema, no options: every former setting is a named
+  constant in the module that uses it.
+- **`src/` is the deliverable.** It is copied into other projects whole, so it must stand alone:
+  no build step, no generated files, no imports outside it.
 
 ## Commands
 
@@ -33,23 +36,22 @@ pnpm run check      # fmt:check + lint + typecheck + test + build — must stay 
 pnpm test           # vitest
 pnpm run typecheck  # tsgo
 pnpm run fmt        # oxfmt
-pnpm run build      # emit dist/ — what the published package runs
-pnpm run schema     # regenerate schema.json after editing src/config/schema.ts
 ```
 
-This is a **pnpm** project (pinned in `packageManager`). Do not use `npm` — except in the
-`prepare` script, which runs on consumers' machines where pnpm may be absent.
+This is a **pnpm** project (pinned in `packageManager`). Do not use `npm` for development; CI's
+copy job uses it deliberately, standing in for a stranger's project.
 
 ## Notes
 
 - Verify against a real repository, not just tests: both the standard layout and the bare layout
   (`proj/.bare` beside `proj/main`, `proj/feat-x`) must work.
-- `picocolors` is CommonJS — import it by default export. Named imports resolve under vitest but
-  fail under real Node.
-- The tool runs via `npx` / `pnpm dlx`, so `bin` points at `dist/cli.js`, not at a `.ts` file:
-  Node refuses to strip types under `node_modules`.
-- The repository is public and is currently the distribution channel, so a broken `main` breaks
-  `npx github:lewis-wow/claude-bit` for everyone. Use `gh` for repository work; it is already
-  authenticated.
-- CI packs the build and smoke-tests that tarball through `npx` in a real worktree. Users run the
-  CI-built release artifact, not a local build. Keep both workflows green.
+- `ansis` ships both ESM and CJS, so `import ansis, { Ansis } from 'ansis'` works under real Node
+  as well as vitest — the trap `picocolors` (CJS, default export only) used to spring.
+- The tool is **copied into a project**, not installed: `src/` must stand alone, with no build
+  step and no imports outside it. `src/package.json` (`{ "type": "module" }`) is load-bearing —
+  without it the copy is parsed as CommonJS inside a CommonJS project and every import fails.
+- Nothing is published. `package.json` is `private`; there is no `bin`, `dist` or release
+  workflow.
+- The repository is public and is the distribution channel, so a broken `main` is a broken copy
+  for everyone. Use `gh` for repository work; it is already authenticated.
+- CI runs the check, then copies `src/` into a scratch project and runs it there. Keep it green.

@@ -6,106 +6,82 @@ A thin wrapper around the `claude` CLI that puts git worktrees in front of every
 
 Run `claude-bit` anywhere inside a repository and it asks which worktree Claude should run in —
 the main checkout, any linked worktree, or a new one it creates for you. It then names the
-terminal window after that worktree, continues the worktree's existing conversation if there is
-one, and hands over to `claude` with your own arguments appended.
+terminal window after that worktree and colours the session by the kind of work it holds,
+continues the worktree's existing conversation if there is one, and hands over to `claude` with
+your own arguments appended.
 
 ```
 ┌  Where should Claude run?
 │
 ◆  claude-bit            main · 3 minutes ago · main checkout
-│  + Create new worktree…
-│  feat-config           feat/config · 2 hours ago
-│  fix-title             fix/title · yesterday
-│  - Remove worktree…
+│  +  Create new worktree…
+│  feat+retry            feat/retry · 2 hours ago
+│  fix+title             fix/title · yesterday
+│  spike-parser          spike-parser · yesterday
+│  ×  Remove worktrees…
 └
+
+Creating sits second, a keystroke from the top, and removing sits last. They are the only
+coloured entries in the list — bright cyan and bright red, bold — so neither reads as one more
+place to run. Landing on either brightens it and shows what it will do next:
+
 ```
 
-The last entry cleans up after you — see [Removing worktrees](#removing-worktrees).
+│ ● + Create new worktree… (asks for a name)
+│ ● × Remove worktrees… (asks which, then confirms)
 
-## Run it
+```
 
-No install step — run it straight from your package manager's runner:
+```
+
+The session's cursor takes the colour of its [change type](#change-types) — green for a feature,
+amber for a fix — so a glance tells you what kind of work a window holds. The last entry cleans up
+after you — see [Removing worktrees](#removing-worktrees).
+
+There is nothing to configure. No config file, no flags of its own, no schema: run it and it
+works the same way in every repository.
+
+## Copy it in
+
+This is not a package to install. Copy the source into your project and it is yours — edit it,
+rename it, delete the parts you do not want:
 
 ```sh
-npx @lewis_wow/claude-bit            # npm
-pnpm dlx @lewis_wow/claude-bit       # pnpm
-yarn dlx @lewis_wow/claude-bit       # yarn
-bunx @lewis_wow/claude-bit           # bun
+mkdir -p tools/claude-bit
+cp -R /path/to/claude-bit/src/. tools/claude-bit/
+pnpm add @clack/prompts ansis
 ```
 
-Arguments pass through, so appending `--model opus` works as you would expect.
-
-The published package is the artifact CI built — checked, packed and smoke-tested by the
-[Release workflow](.github/workflows/release.yml), never built on your machine. To pin one exact
-build instead of tracking the latest, point a runner at the release tarball:
+Then run the entry point, from anywhere inside the repository:
 
 ```sh
-npx https://github.com/lewis-wow/claude-bit/releases/latest/download/claude-bit.tgz
+node tools/claude-bit/cli.ts
 ```
 
-To run unreleased code from `main`, point a runner at the repository instead. This one _does_
-build on your machine, via `prepare`:
+Arguments pass through, so `node tools/claude-bit/cli.ts --model opus` works as you would expect,
+and the exit status is whatever `claude` exited with. A script makes it shorter:
 
-```sh
-npx github:lewis-wow/claude-bit
-pnpm dlx github:lewis-wow/claude-bit
+```json
+{
+  "scripts": {
+    "claude": "node tools/claude-bit/cli.ts"
+  }
+}
 ```
 
-Requires Node 22 or newer.
+Two things it needs, and nothing else:
 
-### Publishing
+- **Node 22.18 or newer**, which is where type stripping stopped needing a flag. There is no build
+  step — Node reads the TypeScript directly.
+- **`@clack/prompts` and `ansis`**, the only two dependencies.
 
-Publishing happens on CI, never from a laptop. Tagging a version is the whole release:
+The copied folder carries a `package.json` of its own saying `{ "type": "module" }`. That one line
+is what lets it work in a project that is CommonJS, because Node decides a file's module type from
+the nearest `package.json` above it, not from yours.
 
-```sh
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-The [Release workflow](.github/workflows/release.yml) then refuses a tag that disagrees with the
-version in `package.json`, runs the full check, packs, creates the GitHub release and publishes
-to npm with a provenance attestation tying the package to that workflow run.
-
-The package is published under the `@lewis_wow` scope, which is why `--access public` is part of
-the publish step: npm makes scoped packages private by default.
-
-Issues and pull requests go to [https://github.com/lewis-wow/claude-bit](https://github.com/lewis-wow/claude-bit).
-
-### Installing instead
-
-```sh
-pnpm add -g @lewis_wow/claude-bit  # from the registry
-pnpm install && pnpm link -g       # from a clone, for development
-```
-
-### From a clone
-
-```sh
-nvm use          # or `fnm use` — picks the version in .nvmrc
-pnpm install     # `prepare` builds dist/ automatically
-pnpm run check   # fmt, lint, typecheck, test, build
-```
-
-This project uses **pnpm**, pinned in `packageManager`; `corepack enable` picks up the right
-version. The one script that stays on npm is `prepare`, because it runs on a _consumer's_ machine
-during `npx github:...` and npm ships with Node while pnpm may not be installed there.
-
-`.nvmrc` pins Node 26, the current Active LTS ("Lithium"). The test suite and build are verified
-on both 26 and 24.
-
-`pnpm run dev` is that entry point run straight from source — `node src/cli.ts`, no build step,
-Node stripping the types as it loads them. Arguments pass through it like any other invocation
-(`pnpm run dev -- --model opus`), and it exits with whatever `claude` exited with. It always runs
-in the repository root, because that is where `pnpm run` puts you; to try the picker against some
-_other_ repository, call the entry point by path from there instead:
-
-```sh
-cd ~/some/other/repo && node ~/code/claude-bit/src/cli.ts
-```
-
-Running the TypeScript entry point directly this way additionally needs Node 22.18 or newer, which
-is where type stripping arrived. The published package does not — it ships compiled JavaScript,
-because Node refuses to strip types for files under `node_modules`.
+Nothing phones home, nothing is fetched at run time, and your copy never changes under you. To
+take a later version, copy the folder again — and if you have edited it, that is a diff you can
+read.
 
 ## How it decides
 
@@ -151,107 +127,12 @@ A [bare layout](#repository-layouts) has no main checkout, so only the second ru
 working if you do.
 
 A worktree with uncommitted or untracked changes is refused by git, and the picker reopens with
-git's own reason above the list. Set `worktree.forceRemove` if you would rather it went anyway —
-the confirmation then says so, because that is the one case where removal costs you work. Set
-`picker.removeWorktreeLabel` to `null` to hide the entry entirely.
+git's own reason above the list. Nothing here passes `--force`: work you have not committed is
+never thrown away on your behalf. If you really want that worktree gone, `git worktree remove
+--force` is one command away, and you will have said so yourself.
 
 Escape quits, as it does everywhere else in the picker. To back out of a removal without quitting,
 select nothing, or answer no.
-
-## Configuration
-
-Configuration is per project. Drop a `claude-bit.json` (or `.claude-bit.json`) anywhere at or
-above your working directory — normally the repository root:
-
-```json
-{
-  "$schema": "https://lewis-wow.github.io/claude-bit/schema.json",
-  "args": ["--dangerously-skip-permissions"],
-  "terminal": {
-    "title": "{repo}/{worktree} · {branch}"
-  },
-  "worktree": {
-    "args": ["--tmux"]
-  }
-}
-```
-
-Layers apply in order, each overriding the one before it:
-
-1. the built-in defaults
-2. `~/.config/claude-bit/config.json` (or `$XDG_CONFIG_HOME/claude-bit/config.json`)
-3. the file in the **main checkout** — configuration belongs to the repository, and a linked
-   worktree lives outside the main checkout, so walking up from there would never reach it.
-   A bare layout (below) has no main checkout, so this layer is simply absent
-4. the nearest file above the current directory, bounded by the worktree that directory sits in,
-   so a single worktree can override the repository's settings
-
-Objects merge key by key, so a project only states what it changes. Arrays replace wholesale —
-`args` is a complete statement of intent, not something to append to. Unknown keys are an error,
-so a typo never passes silently.
-
-### Options
-
-| Key                          | Default                                | Meaning                                                                                             |
-| ---------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `command`                    | `"claude"`                             | Executable to launch.                                                                               |
-| `args`                       | `["--dangerously-skip-permissions"]`   | Flags added to every launch, before yours.                                                          |
-| `resumeExistingSession`      | `true`                                 | Add `--continue` when the worktree already has a conversation.                                      |
-| `sessionsDirectory`          | `null`                                 | Where Claude Code keeps transcripts. `null` means `~/.claude/projects`; a leading `~/` is expanded. |
-| `color`                      | `"auto"`                               | `auto` \| `always` \| `never`. `auto` honours `NO_COLOR`.                                           |
-| `picker.enabled`             | `true`                                 | Turn the picker off entirely.                                                                       |
-| `picker.message`             | `"Where should Claude run?"`           | Prompt above the list.                                                                              |
-| `picker.maxItems`            | `12`                                   | Rows shown before the list scrolls.                                                                 |
-| `picker.createWorktreeLabel` | `"+ Create new worktree…"`             | Label of the create entry.                                                                          |
-| `picker.removeWorktreeLabel` | `"- Remove worktree…"`                 | Label of the remove entry, or `null` to hide it.                                                    |
-| `picker.removeMessage`       | `"Which worktrees should be removed?"` | Prompt above the list of removable worktrees.                                                       |
-| `picker.passthroughFlags`    | see `schema.json`                      | Arguments that mean "skip the picker".                                                              |
-| `worktree.namePlaceholder`   | `"feat/my-thing"`                      | Placeholder in the name prompt.                                                                     |
-| `worktree.args`              | `[]`                                   | Flags used only when creating a worktree, e.g. `["--tmux"]`.                                        |
-| `worktree.forceRemove`       | `false`                                | Remove a worktree even when it still holds uncommitted or untracked changes.                        |
-| `terminal.title`             | `"{worktree} · {branch}"`              | Window title, or `null` to leave the title alone.                                                   |
-| `terminal.sessionName`       | `"{worktree}"`                         | Passed to `claude --name`, or `null` to omit it.                                                    |
-
-Both templates understand `{worktree}`, `{branch}`, `{repo}` and `{path}`. A token with no value
-disappears along with the separator beside it, so a detached worktree reads `api`, not `api · `.
-
-Each file is validated on its own before the layers are merged, so an error names the file that
-actually contains the bad value.
-
-### JSON schema
-
-`schema.json` is generated from the very same schema that validates your config at runtime
-(`npm run schema`), so the two can never drift. Point your editor at it with a `$schema` key and
-you get completion, inline descriptions, defaults and validation for every option:
-
-```json
-{ "$schema": "https://lewis-wow.github.io/claude-bit/schema.json" }
-```
-
-That URL is served from GitHub Pages, redeployed from `main` on every push by the
-[Pages workflow](.github/workflows/pages.yml), which also fails the build if `schema.json` has
-drifted from `src/config/schema.ts`. <https://lewis-wow.github.io/claude-bit/> lists the
-top-level options in a table.
-
-It needs no install and no registry. If you would rather resolve it offline, point at a local
-copy — `./schema.json` in this repository, or `./node_modules/claude-bit/schema.json` once the
-package is installed.
-
-VS Code users can skip the `$schema` key entirely and map it once in `.vscode/settings.json`:
-
-```json
-{
-  "json.schemas": [
-    {
-      "fileMatch": ["claude-bit.json", ".claude-bit.json"],
-      "url": "https://lewis-wow.github.io/claude-bit/schema.json"
-    }
-  ]
-}
-```
-
-The schema ships inside the published package, so it is versioned alongside the code that reads
-it.
 
 ## Repository layouts
 
@@ -264,11 +145,10 @@ proj/                       proj/
 proj-feat-x/                  feat-x/
 ```
 
-On the left, `proj` is the main checkout; it is bolded and labelled in the picker, and its
-`claude-bit.json` applies to every worktree. On the right the repository is bare, so there is no
-main checkout — the `.bare` directory is never offered as a place to run, nothing is labelled as
-the main checkout, and each worktree's own committed config applies. The `{repo}` token resolves
-to `proj` in both cases.
+On the left, `proj` is the main checkout; it is bolded and labelled in the picker, and it is
+where a new worktree is created from. On the right the repository is bare, so there is no main
+checkout — the `.bare` directory is never offered as a place to run, and nothing is labelled as
+the main checkout. Both layouts are otherwise the same to use.
 
 ## Terminal titles
 
@@ -279,8 +159,9 @@ The title is set twice over, because two things want to own it:
 - `--name` tells Claude Code itself what this session is called, which it shows in its prompt
   box, in `/resume`, and in the title it maintains afterwards.
 
-Set `terminal.title` to `null` if your shell prompt manages the title, or `terminal.sessionName`
-to `null` if you would rather Claude named the session itself.
+Claude Code takes the title over within a second of starting, so what you end up looking at is
+the name `--name` gave it: the worktree's directory name. The title `claude-bit` sets adds the
+branch, and is what you see while Claude boots.
 
 ### VS Code shows `node` on the tab
 
@@ -297,37 +178,103 @@ name — `${sequence}`:
 `${sequence}` alone is enough if every terminal you open sets a title; keeping `${process}` after
 it means a plain shell still has something to show.
 
-Worth knowing before you turn this on: the tab will not keep reading `{worktree} · {branch}`.
+Worth knowing before you turn this on: the tab will not keep reading `worktree · branch`.
 `claude-bit` sets that title once, just before handing off, and Claude Code then maintains its
 own — so the tab follows Claude. That is usually what you want, and the worktree name survives
-anyway, because `terminal.sessionName` passes it to `--name`.
+anyway, because `--name` carries it.
+
+## Change types
+
+Name a worktree after what it changes and the colour follows from that. You type the whole name
+yourself — no list to arrow through — and the types are spelled out above the prompt, each in its
+own colour, so there is nothing to memorise and nothing to guess:
+
+```
+◇  Name it after what it changes ─────────────────────────────────────╮
+│                                                                     │
+│  feat           a new capability                                    │
+│  fix            a defect, repaired                                  │
+│  refactor       same behaviour, written better                      │
+│  test           tests only                                          │
+│  docs           documentation only                                  │
+│  chore          upkeep — dependencies, tooling, housekeeping        │
+│  perf           same behaviour, faster                              │
+│  ci             pipelines, workflows, releases                      │
+│  anything else  a name of your own, in a quieter colour of its own  │
+│                                                                     │
+├─────────────────────────────────────────────────────────────────────╯
+│
+◆  New worktree name
+│  fix/retry-logic
+└
+```
+
+A type becomes the branch prefix, the way a conventional commit names one. None of this is
+compulsory: any name is accepted, and a worktree that names no type gets a quiet colour of its
+own rather than a complaint. Only an empty name is refused.
+
+## Session colours
+
+The colour of a session **is** its type. A feature is green, a fix amber, documentation blue, and
+every terminal running that kind of work looks the same, in every repository:
+
+| `feat` | `fix` | `refactor` | `test` | `docs` | `chore` | `perf` | `ci` | anything else |
+| ------ | ----- | ---------- | ------ | ------ | ------- | ------ | ---- | ------------- |
+| green  | amber | violet     | yellow | sky    | blue    | pink   | mint | grey          |
+
+A worktree whose name starts with none of them — `main`, `spike-the-parser`, anything created
+outside this tool — still gets a colour of its own, derived from the name, but a **muted** one.
+Typed worktrees are vivid, free ones are quiet, so a free name can never be mistaken for a type
+at a glance while still being told apart from its neighbours.
+
+The type is read back from the directory name or the branch, whichever carries it, so
+`feat/retry`, `feat+retry` and `feat-retry` are all a feature. Red belongs to errors and to the
+remove entry, and no type borrows it.
+
+What this trades away is worth knowing: two features open at once are both green. The colour
+tells you what kind of work a window holds, not which window it is — the title does that.
+
+The picker itself stays plain — names as they are, details dim, the main checkout bold, and the
+two actions in their own bright colours. The session colour appears in one place only: the
+cursor, from the moment Claude starts until it exits.
+
+### What gets painted
+
+The **cursor**, and nothing else: `OSC 12` on the way in, `OSC 112` to hand it back when Claude
+exits. Almost every terminal honours it, VS Code included, and one that does not swallows the
+sequence silently — so there is nothing to detect and nothing to switch off. Your theme keeps
+its background, its tab and everything else.
+
+Colour is only ever written to a terminal: pipe the output or redirect it and nothing is sent.
+`NO_COLOR` in the environment leaves the picker's labels plain, as it does everywhere else.
 
 ## Layout
 
 ```
 src/
   cli.ts             entry point: process in, exit status out
-  app.ts             the flow — find repo, load config, choose worktree, plan launch
+  app.ts             the flow — find repo, choose worktree, plan launch
   resolutionKind.ts  Launch | Cancelled
+  changeType.ts      Feat | Fix | Refactor | Test | Docs | Chore | Perf | Ci, and reading one
+                     back off a worktree name
   claude/
-    plan.ts          pure: target + config → the exact command to run
+    plan.ts          pure: target → the exact command to run, and its colour
     launcher.ts      spawns it and mirrors the child's exit status
     sessions.ts      whether a directory already has a stored conversation
     targetKind.ts    Existing | New
-  config/
-    schema.ts        the config contract, and the source of schema.json
-    merge.ts         how layers combine
-    load.ts          discovery, layering, validation
   git/
     git.ts           the git runner, injectable so nothing needs a real repo to test
     porcelain.ts     pure parsers for git's machine-readable output
     repository.ts    worktrees, ordered the way the picker wants them
     removeWorktrees.ts  the one mutation: git worktree remove, refusals collected
   terminal/
-    palette.ts       colour roles, backed by picocolors
-    title.ts         title templates and the escape sequence that carries them
-    colorMode.ts     Auto | Always | Never
-    titleToken.ts    Worktree | Branch | Repo | Path
+    palette.ts       colour roles, backed by ansis
+    hslToRgb.ts      a hue, saturation and lightness as a terminal colour
+    title.ts         the title, and the escape sequence that carries it
+    cursorColor.ts   colouring the cursor, and handing it back on exit
+    sessionColor.ts  the colour a worktree name always resolves to
+    colorChannel.ts  Red | Green | Blue
+    controlCharacters.ts  OSC and BEL, named rather than inlined
   ui/
     picker.ts        all the prompting; one Choice comes back
     chooseTarget.ts  asks until the answer is a worktree, removing in between
@@ -337,6 +284,9 @@ src/
 
 The decision layer (`plan.ts`, `app.ts`) is pure and injected, so what actually matters — which
 flags Claude receives, in what order — is covered by tests rather than by running the binary.
+Everything the tool could have made configurable is a named constant at the top of the file that
+uses it: `plan.ts` holds the command and its arguments, `picker.ts` the prompts, `sessionColor.ts`
+the colours.
 [docs/architecture.md](docs/architecture.md) explains why the pieces are split the way they are,
 [docs/verifying.md](docs/verifying.md) covers what the test suite cannot see,
 [docs/conventions.md](docs/conventions.md) records the house style, and
@@ -349,15 +299,23 @@ is in [docs/conventions.md](docs/conventions.md).
 ## Development
 
 ```sh
-pnpm run dev          # run the CLI from source — node src/cli.ts, no build step
-pnpm run check        # format, lint, typecheck, test, build
+pnpm install          # clone first; `nvm use` or `fnm use` picks the version in .nvmrc
+pnpm run dev          # run the CLI from source — node src/cli.ts
+pnpm run check        # format, lint, typecheck, test
 pnpm test             # vitest
 pnpm run typecheck    # tsgo (TypeScript's native port)
 pnpm run lint         # oxlint
 pnpm run fmt          # oxfmt
-pnpm run build        # emit dist/ — what the published package runs
-pnpm run schema       # regenerate schema.json after editing config/schema.ts
 ```
 
-Every push and pull request runs the same check on CI, then packs the result and smoke-tests that
-packed artifact in a real worktree — see [.github/workflows/ci.yml](.github/workflows/ci.yml).
+`pnpm run dev` always runs in the repository root, because that is where `pnpm run` puts you. To
+try the picker against some other repository, call the entry point by path from there:
+
+```sh
+cd ~/some/other/repo && node ~/code/claude-bit/src/cli.ts
+```
+
+Every push and pull request runs that check on CI, then copies `src/` into a scratch project that
+has never seen this repository and runs it there, in a real worktree — because copying is how
+anyone uses this, and it is the one thing the test suite cannot see. See
+[.github/workflows/ci.yml](.github/workflows/ci.yml).

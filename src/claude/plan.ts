@@ -1,9 +1,30 @@
 import { basename } from 'node:path';
 
-import type { Config } from '../config/schema.ts';
-import { renderTitleTemplate } from '../terminal/title.ts';
-import type { TitleTokens } from '../terminal/title.ts';
+import { changeTypeOf } from '../changeType.ts';
+import { sessionColorFor } from '../terminal/sessionColor.ts';
+import type { SessionColor } from '../terminal/sessionColor.ts';
+import { composeTitle } from '../terminal/title.ts';
 import { TargetKind } from './targetKind.ts';
+
+export const COMMAND = 'claude';
+
+export const BASE_ARGS: readonly string[] = ['--dangerously-skip-permissions'];
+
+export const PASSTHROUGH_FLAGS: readonly string[] = [
+  '-c',
+  '--continue',
+  '-r',
+  '--resume',
+  '-p',
+  '--print',
+  '-h',
+  '--help',
+  '-v',
+  '--version',
+  '-w',
+  '--worktree',
+  '--from-pr',
+];
 
 export type LaunchTarget =
   | {
@@ -21,15 +42,12 @@ export type Launch = {
   command: string;
   args: string[];
   cwd: string;
-  title: string | undefined;
+  title: string;
+  color: SessionColor;
 };
 
 type PlanLaunchOptions = {
-  config: Config;
-  repository: {
-    root: string;
-    directory: string;
-  };
+  repositoryRoot: string;
   target: LaunchTarget;
   forwardedArgs: readonly string[];
 };
@@ -37,49 +55,28 @@ type PlanLaunchOptions = {
 const worktreeName = (target: LaunchTarget) =>
   target.kind === TargetKind.Existing ? basename(target.path) : target.name;
 
-const titleTokensFor = (target: LaunchTarget, repository: PlanLaunchOptions['repository']): TitleTokens => ({
-  worktree: worktreeName(target),
-  branch: target.kind === TargetKind.Existing ? target.branch : undefined,
-  repo: basename(repository.directory),
-  path: target.kind === TargetKind.Existing ? target.path : repository.root,
-});
-
-const renderOptionalTemplate = (template: string | null, tokens: TitleTokens) => {
-  if (template === null) {
-    return undefined;
-  }
-
-  const rendered = renderTitleTemplate(template, tokens);
-
-  return rendered.length > 0 ? rendered : undefined;
-};
-
-export const usesPassthroughFlag = (argv: readonly string[], flags: readonly string[]): boolean => {
-  const known = new Set(flags);
+export const usesPassthroughFlag = (argv: readonly string[]): boolean => {
+  const known = new Set(PASSTHROUGH_FLAGS);
 
   return argv.some((argument) => known.has(argument.split('=')[0] ?? argument));
 };
 
-export const planLaunch = ({ config, repository, target, forwardedArgs }: PlanLaunchOptions): Launch => {
-  const tokens = titleTokensFor(target, repository);
-  const sessionName = renderOptionalTemplate(config.terminal.sessionName, tokens);
+export const planLaunch = ({ repositoryRoot, target, forwardedArgs }: PlanLaunchOptions): Launch => {
+  const name = worktreeName(target);
+  const branch = target.kind === TargetKind.Existing ? target.branch : undefined;
 
   const targetArgs =
     target.kind === TargetKind.New
-      ? ['--worktree', target.name, ...config.worktree.args]
-      : config.resumeExistingSession && target.hasStoredSession
+      ? ['--worktree', target.name]
+      : target.hasStoredSession
         ? ['--continue']
         : [];
 
   return {
-    command: config.command,
-    cwd: target.kind === TargetKind.New ? repository.root : target.path,
-    title: renderOptionalTemplate(config.terminal.title, tokens),
-    args: [
-      ...config.args,
-      ...targetArgs,
-      ...(sessionName === undefined ? [] : ['--name', sessionName]),
-      ...forwardedArgs,
-    ],
+    command: COMMAND,
+    cwd: target.kind === TargetKind.New ? repositoryRoot : target.path,
+    title: composeTitle([name, branch]),
+    color: sessionColorFor(name, changeTypeOf(name) ?? changeTypeOf(branch)),
+    args: [...BASE_ARGS, ...targetArgs, '--name', name, ...forwardedArgs],
   };
 };

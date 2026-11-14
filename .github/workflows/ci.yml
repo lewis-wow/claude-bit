@@ -34,49 +34,16 @@ jobs:
       - name: Test
         run: pnpm run test
 
-      - name: Build
-        run: pnpm run build
-
-      - name: Pack
-        run: |
-          tarball="$(pnpm pack --pack-destination . | tail -1)"
-          mv "$tarball" claude-bit.tgz
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: claude-bit-package
-          path: claude-bit.tgz
-          if-no-files-found: error
-
-  smoke:
+  copy:
     needs: check
     runs-on: ubuntu-latest
 
     steps:
-      - name: Take package.json alone, so pnpm reads its pinned version from packageManager
-        uses: actions/checkout@v7
-        with:
-          sparse-checkout: package.json
-          sparse-checkout-cone-mode: false
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: claude-bit-package
-
-      - uses: pnpm/action-setup@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-
-      - name: Serve the artifact, so npx sees a URL and not a local path
-        run: |
-          python3 -m http.server 8731 --directory "$GITHUB_WORKSPACE" &
-          for _ in $(seq 1 20); do
-            curl -sfI http://localhost:8731/claude-bit.tgz >/dev/null && break
-            sleep 0.5
-          done
-          curl -sfI http://localhost:8731/claude-bit.tgz >/dev/null
 
       - name: Stub out claude, so nothing real is launched
         run: |
@@ -84,28 +51,34 @@ jobs:
           printf '#!/bin/sh\necho "CWD=$(pwd)"\necho "ARGS=$*"\n' > /tmp/stub/claude
           chmod +x /tmp/stub/claude
 
-      - name: npx the artifact outside a repository
+      - name: Copy the source into a project that has never seen this repository
         run: |
-          mkdir -p /tmp/scratch && cd /tmp/scratch
-          echo '{"command":"/tmp/stub/claude"}' > claude-bit.json
-          npx -y http://localhost:8731/claude-bit.tgz < /dev/null | tee out.txt
-          grep -q "CWD=/tmp/scratch" out.txt
+          mkdir -p /tmp/project/tools/claude-bit
+          cp -R src/. /tmp/project/tools/claude-bit/
+          cd /tmp/project
+          npm init -y
+          npm install @clack/prompts ansis
 
-      - name: npx the artifact inside a linked worktree
+      - name: Run the copy inside a linked worktree
         run: |
-          cd /tmp
+          cd /tmp/project
           git init -q repo && cd repo
           git -c user.email=ci@example.com -c user.name=ci \
             -c commit.gpgsign=false commit -qm init --allow-empty
           git worktree add -q ../repo-feat -b feat/x
-          echo '{"command":"/tmp/stub/claude"}' > claude-bit.json
           cd ../repo-feat
-          npx -y http://localhost:8731/claude-bit.tgz < /dev/null | tee out.txt
-          grep -q "CWD=/tmp/repo-feat" out.txt
+          PATH=/tmp/stub:$PATH node /tmp/project/tools/claude-bit/cli.ts < /dev/null | tee out.txt
+          grep -q "CWD=/tmp/project/repo-feat" out.txt
           grep -q -- "--name repo-feat" out.txt
 
-      - name: pnpm dlx the same artifact
+      - name: Run the copy outside a repository
+        run: |
+          mkdir -p /tmp/scratch && cd /tmp/scratch
+          PATH=/tmp/stub:$PATH node /tmp/project/tools/claude-bit/cli.ts < /dev/null | tee out.txt
+          grep -q "CWD=/tmp/scratch" out.txt
+
+      - name: Refuse to start when claude is not installed
         run: |
           cd /tmp/scratch
-          pnpm dlx http://localhost:8731/claude-bit.tgz < /dev/null | tee out2.txt
-          grep -q "CWD=/tmp/scratch" out2.txt
+          node /tmp/project/tools/claude-bit/cli.ts < /dev/null 2>err.txt && exit 1
+          grep -q "claude was not found on PATH" err.txt

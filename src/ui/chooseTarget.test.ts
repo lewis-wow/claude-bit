@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { TargetKind } from '../claude/targetKind.ts';
-import { defaultConfig } from '../config/schema.ts';
-import type { Config } from '../config/schema.ts';
 import { COMMIT_FIELD_SEPARATOR } from '../git/porcelain.ts';
 import { openRepository } from '../git/repository.ts';
 import { ChoiceKind } from './choiceKind.ts';
@@ -58,14 +56,10 @@ const picking = (...choices: (Choice | undefined)[]) => {
   return pick;
 };
 
-const choose = (
-  git: ReturnType<typeof gitServingListings>,
-  pick: ReturnType<typeof picking>,
-  config: Partial<Config> = {},
-) => {
+const choose = (git: ReturnType<typeof gitServingListings>, pick: ReturnType<typeof picking>) => {
   const repository = openRepository({ git, cwd: '/repo' })!;
 
-  return chooseTarget({ repository, config: { ...defaultConfig(), ...config }, cwd: '/repo', git, pick });
+  return chooseTarget({ repository, cwd: '/repo', git, pick });
 };
 
 describe('chooseTarget', () => {
@@ -87,15 +81,6 @@ describe('chooseTarget', () => {
     expect(await choose(git, pick)).toEqual(launchChoice.target);
     expect(git).toHaveBeenCalledWith(['worktree', 'remove', '/repo-wt/api'], { cwd: '/repo' });
     expect(pick).toHaveBeenCalledTimes(2);
-  });
-
-  it('forces removal when the project allows it', async () => {
-    const git = gitServingListings([WORKTREE_LIST]);
-    await choose(git, picking(removalChoice(['/repo-wt/api']), launchChoice), {
-      worktree: { ...defaultConfig().worktree, forceRemove: true },
-    });
-
-    expect(git).toHaveBeenCalledWith(['worktree', 'remove', '--force', '/repo-wt/api'], { cwd: '/repo' });
   });
 
   it('shows the picker the worktrees that are left', async () => {

@@ -9,7 +9,7 @@ One invocation is a straight line:
 
 ```
 cli.ts              read the process: argv, cwd, whether both ends are a terminal
-  app.ts            find the repository, load config, choose a worktree
+  app.ts            find the repository, choose a worktree
     chooseTarget.ts ask until the answer is a worktree
       picker.ts     all the prompting; one Choice comes back
     plan.ts         turn that choice into the exact command to run
@@ -60,9 +60,9 @@ here the user is mid-task and a crash would lose the session they were about to 
 ## Dependency injection, and where it stops
 
 `resolveLaunch` takes a `Dependencies` object defaulted to the real
-implementations: the git runner, the config loader, the session lookup, the
-picker. Tests pass fakes. Nothing needs a real repository on disk, and the
-picker never opens during a test run.
+implementations: the git runner, the session lookup, the picker. Tests pass
+fakes. Nothing needs a real repository on disk, and the picker never opens
+during a test run.
 
 Injection stops at the boundary. Inside `plan.ts` there is nothing to inject,
 because it is pure: data in, data out.
@@ -97,40 +97,40 @@ worktree reports `isMainCheckout`, and the picker simply does not label one.
 The bare entry itself is filtered out of `worktrees`: it has no working tree,
 so it is not somewhere a session can run.
 
-## Configuration layering
+## No configuration, and what replaced it
 
-Four layers, lowest first: defaults, user file, main checkout, nearest file
-above the working directory.
+There was a config file once — `claude-bit.json`, four merge layers, a
+generated JSON schema and a page hosting it. It is gone. The tool now has one
+behaviour, and every former option is a named constant in the module that uses
+it: the command and its base arguments in `claude/plan.ts`, the prompts in
+`ui/picker.ts`, the colours in `terminal/sessionColor.ts`.
 
-The main checkout is a layer of its own because configuration belongs to the
-repository, and a linked worktree lives **outside** the main checkout — walking
-up from `proj-feat-x` never reaches `proj`. Without that layer, a repo's config
-is invisible from every worktree except the original one.
+What that bought, beyond less code: there is no layering to reason about, no
+file whose absence or staleness changes what runs, no schema that can drift
+from the validator, and nothing to document except behaviour. A reader of
+`plan.ts` can see the whole launch in one screen.
 
-The upward search is bounded by the enclosing worktree so it cannot wander into
-unrelated parent directories and pick up a stranger's config.
+What it costs is real and deliberate. Two choices that used to be settable are
+now fixed on the safer side:
 
-In a bare layout there is no main checkout, so that layer is absent and each
-worktree's own committed config applies — which is the right answer, since each
-worktree has its own checkout of the file.
+- **Removal never passes `--force`.** Git refuses a worktree with uncommitted
+  changes, and that refusal is reported rather than overridden; work is not
+  thrown away on the tool's say-so.
+- **`--dangerously-skip-permissions` is always passed**, because that is what
+  this wrapper is for. Anything else the user wants goes on the command line,
+  which is forwarded last and therefore wins.
 
-Each file is validated **on its own** before the layers are merged. Validating
-only the merged result reports every problem against the highest-precedence
-file, which may not even mention the offending key.
-
-Objects merge key by key so a project states only what it changes. Arrays
-replace wholesale: a list like `args` is a complete statement of intent, not
-something to append to.
+The escape hatch for everything else is the same one the tool already relies
+on: arguments are forwarded to `claude` untouched.
 
 ## When the picker is skipped
 
-Three independent reasons, all in `resolveLaunch`:
+Two independent reasons, both in `resolveLaunch`:
 
 - **Not a terminal.** Both stdin and stdout must be a TTY. Checking stdin alone
   is wrong: the picker reads keys from stdin but _draws on stdout_, so
   `claude-bit > out.log` would render the prompt into the file and look like a
   hang.
-- **Turned off** in config.
 - **Argv already names a session** — `--resume`, `--continue`, `-p`, `-w` and
   friends. These also suppress the automatic `--continue`, because such a flag
   is Claude's own answer to the same question and the wrapper must not
@@ -138,7 +138,7 @@ Three independent reasons, all in `resolveLaunch`:
 
 ## Argument order
 
-`plan.ts` assembles arguments as: configured `args`, then target-specific flags
+`plan.ts` assembles arguments as: the base arguments, then target-specific flags
 (`--continue`, or `--worktree <name>`), then `--name`, then whatever the user
 typed. The user's arguments come last so they win — `claude-bit --name mine`
 overrides the generated session name.
@@ -152,9 +152,81 @@ Two mechanisms, because two things want to own the window title:
 - `--name` tells Claude Code what the session is called, which it shows in its
   prompt box, in `/resume`, and in the title it maintains afterwards.
 
-Templates must survive missing values: a detached worktree has no branch. A
-token with no value disappears **along with the separator beside it**, so the
+The title must survive missing values: a detached worktree has no branch. A
+part with no value disappears **along with the separator beside it**, so the
 result is `api`, never `api · `.
+
+## A colour per kind of work
+
+The colour of a session is its **change type** — `feat`, `fix`, `refactor`,
+`test`, `docs`, `chore`, `perf`, `ci` — and nothing else. Creating a worktree
+asks for the type before the name, and the name it builds carries it:
+`fix/retry-logic`. Reading a colour back is then parsing, not remembering.
+
+This replaced a hash of the worktree name, and the replacement is a change of
+meaning rather than of mechanism. A hash answered _which session is this_; two
+features got two colours, and neither colour told you anything. The type
+answers _what kind of work is this_, which is the question a wall of terminals
+actually raises. The cost is that two features open at once are both green —
+the colour no longer identifies a window, and the title is what does.
+
+The type is an offer rather than a rule. The name is typed as it always was —
+`fix/retry-logic`, one prompt, no list to arrow through — with the types
+printed above that prompt, each in its own colour, so visibility costs nobody
+a keystroke. A name that names no type is accepted; only an empty one is
+refused. A wrapper that stood between its user and `git worktree add` to
+enforce a naming policy would be answering a question nobody asked it.
+
+Which is why free names are coloured too, rather than all sharing one grey.
+Their hue is hashed from the name — the scheme this file used to describe for
+every worktree — but at **0.3 saturation against a type's 0.8**. Vividness
+carries the meaning: a type is vivid, a free name is quiet. Two signals in one
+colour, and a free name cannot pass for `feat` at a glance even if its hue
+lands nearby. Twelve quiet hues is not many, so two free names can share one;
+the type colours, which carry meaning rather than identity, never collide.
+
+The type is read from **the directory name or the branch**, whichever carries
+it. Claude Code writes `feat/retry` to disk as `feat+retry`, and a worktree
+added by hand might be `feat-retry`, so the separator set is `/ + - _ .` and a
+bare `docs` counts too. Anything else — `main`, or a worktree from before this
+existed — has no type and is grey, which reads as what it is: not a piece of
+work in progress.
+
+Hues are assigned so that neighbours in meaning are not neighbours on the
+circle, and `fix` sits at 35° rather than 0°: red is the `error` role and the
+removal entry, and a worktree that borrowed it would read as a warning.
+Saturation and lightness are fixed at 0.8 and 0.72, which keeps the worst case
+— `chore`, the most blue — at about 5.9:1 against `#1e1e1e`.
+
+The colour is decided in `plan.ts` with everything else about the launch, and
+carried on `Launch` beside the title: deciding and emitting stay apart, so what
+a session is coloured is asserted on a plain object rather than by reading
+bytes off a terminal.
+
+Three places show it, and they answer three different questions:
+
+| Where          | Which worktree       | Why that one                       |
+| -------------- | -------------------- | ---------------------------------- |
+| Picker entries | each listed worktree | see what is in flight at a glance  |
+| Picker accent  | the enclosing one    | the session you are in right now   |
+| The terminal   | the chosen one       | the session you are about to start |
+
+Only the **cursor** is painted — `OSC 12` in, `OSC 112` back out. Earlier
+versions also tinted the tab (iTerm2's `OSC 6`) and the terminal background
+(`OSC 11`), and both were dropped: the tab is unreachable in VS Code, whose
+xterm.js implements `OSC 10/11/12` but not `OSC 6`, and a background tint
+overrides the theme the user chose, which is a loud thing for a wrapper to do
+uninvited. The cursor is honoured almost everywhere, costs the user nothing,
+and a terminal that does not know the sequence swallows it — so none of this
+needs capability detection.
+
+It is handed back when Claude exits, for the same reason a title is set before
+launch: the colour belongs to the session, and the session is over.
+
+Truecolour is what makes these colours possible, and `ansis` is what makes it
+safe: it detects what the terminal can show and downgrades a `38;2;r;g;b`
+request to 256 or 16 colours rather than emitting bytes an older terminal
+would mangle.
 
 ## Parsing git
 

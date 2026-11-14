@@ -10,20 +10,11 @@ describe('removeWorktrees', () => {
   it('asks git to remove each worktree, from the repository the user is in', () => {
     const git = vi.fn(() => '');
 
-    expect(
-      removeWorktrees({ git, cwd: '/repo', paths: ['/repo-wt/api', '/repo-wt/web'], force: false }),
-    ).toEqual([]);
+    expect(removeWorktrees({ git, cwd: '/repo', paths: ['/repo-wt/api', '/repo-wt/web'] })).toEqual([]);
     expect(git.mock.calls).toEqual([
       [['worktree', 'remove', '/repo-wt/api'], { cwd: '/repo' }],
       [['worktree', 'remove', '/repo-wt/web'], { cwd: '/repo' }],
     ]);
-  });
-
-  it('adds --force when the project allows removing worktrees with changes', () => {
-    const git = vi.fn(() => '');
-    removeWorktrees({ git, cwd: '/repo', paths: ['/repo-wt/api'], force: true });
-
-    expect(git).toHaveBeenCalledWith(['worktree', 'remove', '--force', '/repo-wt/api'], { cwd: '/repo' });
   });
 
   it('reports the reason git refused, without stopping at the first refusal', () => {
@@ -33,9 +24,9 @@ describe('removeWorktrees', () => {
         throw new Error(REFUSED);
       });
 
-    expect(
-      removeWorktrees({ git, cwd: '/repo', paths: ['/repo-wt/api', '/repo-wt/web'], force: false }),
-    ).toEqual([{ path: '/repo-wt/api', reason: FATAL }]);
+    expect(removeWorktrees({ git, cwd: '/repo', paths: ['/repo-wt/api', '/repo-wt/web'] })).toEqual([
+      { path: '/repo-wt/api', reason: FATAL },
+    ]);
     expect(git).toHaveBeenCalledTimes(2);
   });
 
@@ -46,7 +37,7 @@ describe('removeWorktrees', () => {
         throw new Error([REFUSED, 'hint: see git-worktree(1)'].join('\n'));
       });
 
-    expect(removeWorktrees({ git, cwd: '/repo', paths: ['/repo-wt/api'], force: false })).toEqual([
+    expect(removeWorktrees({ git, cwd: '/repo', paths: ['/repo-wt/api'] })).toEqual([
       { path: '/repo-wt/api', reason: REFUSED.split('\n').at(-2) },
     ]);
   });
@@ -56,7 +47,7 @@ describe('removeWorktrees', () => {
       throw new Error('');
     });
 
-    expect(removeWorktrees({ git, cwd: '/repo', paths: ['/repo-wt/api'], force: false })).toEqual([
+    expect(removeWorktrees({ git, cwd: '/repo', paths: ['/repo-wt/api'] })).toEqual([
       { path: '/repo-wt/api', reason: 'git refused to remove the worktree' },
     ]);
   });

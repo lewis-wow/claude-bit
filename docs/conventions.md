@@ -7,9 +7,7 @@ without needing to be restated.
 
 - Name files in **camelCase** — `targetKind.ts`, `writeSchema.ts`. Never `something-something.ts`.
 - Use **kebab-case for folders only**.
-- Two names stay hyphenated because they are not ours to choose: `pnpm-lock.yaml` (pnpm owns it)
-  and `claude-bit.json` (the config filename users write — part of the public interface, not the
-  source layout).
+- One name stays hyphenated because it is not ours to choose: `pnpm-lock.yaml`, which pnpm owns.
 
 ## Enums
 
@@ -40,51 +38,49 @@ without needing to be restated.
 
 ## Terminal output
 
-- Never hand-write ANSI colour escapes. Use a colour library (`picocolors`).
-- Ask for a colour **role**, not a colour: `accent`, `muted`, `strong`, `error` from
-  `terminal/palette.ts`, so the scheme changes in one place.
-- Never leave raw control characters in source. Write `` and ``, and keep them behind
+- Never hand-write ANSI colour escapes. Use a colour library (`ansis`), which also downgrades a
+  truecolour request to 256 or 16 colours on terminals that cannot show it.
+- Ask for a colour **role**, not a colour: `action`, `danger`, `muted`, `strong`, `error` and
+  `session` from `terminal/palette.ts`, so the scheme changes in one place.
+- Never leave raw control characters in source. Write `\u001B` and `\u0007`, and keep them behind
   named constants.
 - The terminal window title must follow the **worktree name**.
 
-## Configuration
+## No configuration
 
-- Everything must be configurable **per project**, through one simple config file.
-- Defaults belong in the schema, so a project only writes down what it changes.
-- The config must have a **JSON schema**, generated from the same definition that validates it at
-  runtime (`pnpm run schema`) so the two cannot drift. Never hand-maintain `schema.json`.
-- Every option carries a `.describe()`, because that text becomes the editor tooltip.
-- The schema ships in the published package **and** is hosted on GitHub Pages at
-  <https://lewis-wow.github.io/claude-bit/schema.json>, since `npx` users have no `node_modules` to point at. The Pages build fails if the
-  committed `schema.json` is stale.
+- The tool has **no configuration**: no config file, no schema, no options of its own. Copy it,
+  run it, and it behaves the same in every repository.
+- Anything that would once have been an option is a **named constant** in the module that uses
+  it — the command and its arguments in `claude/plan.ts`, the prompts in `ui/picker.ts`, the
+  colours in `terminal/sessionColor.ts`. One place to read, one place to change.
+- Prefer a sensible fixed answer to a question the user has to answer. If a choice genuinely has
+  two defensible answers, pick the safer one and say why here, rather than adding a setting.
+- Arguments the user types are forwarded to `claude` untouched and last, which is the only
+  tuning the tool needs to offer.
 
 ## Distribution
 
-- The tool is meant to be run through a package runner — `npx`, `pnpm dlx`, `yarn dlx`, `bunx` —
-  not installed globally or linked by hand.
-- `bin` must point at compiled JavaScript in `dist/`, never at a `.ts` file: Node refuses to strip
-  types for files under `node_modules`, so a TypeScript entry point fails for anyone who installs
-  the package.
-- `prepare` builds `dist/` before pack, publish and git installs. Keep it working.
-- `files` ships `dist/` and `schema.json` only.
-- Users run the artifact **CI built**, not one built on their machine: the release tarball, via
-  `npx <release url>`. CI smoke-tests that exact artifact before it ships.
-- Publishing to npm happens **only from the release workflow**, on a `v*` tag, never from a
-  laptop. The workflow refuses a tag whose version disagrees with `package.json`, because a
-  published version can never be reused.
-- The repository (<https://github.com/lewis-wow/claude-bit>) is public and, until the package is published, is itself the
-  distribution channel. See [github.md](github.md).
+- The tool is **copied into a project**, not installed from a registry and not run from a remote
+  repository. `cp -R src/. <project>/tools/claude-bit/` is the whole of it.
+- `src/` must therefore stand on its own: no imports outside it, no build step, no generated
+  files, nothing that only exists in this repository.
+- `src/package.json` carries `{ "type": "module" }` and must stay. Node takes a file's module
+  type from the nearest `package.json` above it, so without that line the copy breaks inside a
+  CommonJS project — which is most of them.
+- The entry point is `src/cli.ts`, run directly. That needs **Node 22.18 or newer**, where type
+  stripping stopped needing a flag; `engines` says so.
+- Keep the dependency list to what a copy can reasonably carry. Two, today.
+- Nothing is published. `package.json` is `private`, and there is no `bin`, no `files` and no
+  release workflow to keep working.
 
 ## Tooling
 
 - The package manager is **pnpm**, pinned in `packageManager`. Use `pnpm`, never `npm`, for
-  development. Two places stay on npm, both deliberate: the `prepare` script, which runs on a
-  consumer's machine during `npx github:...` where npm is guaranteed to exist and pnpm is not;
-  and the publish step in the release workflow, because `pnpm publish` has no `--provenance`
-  flag and the published package should carry a provenance attestation.
+  development. CI's copy job uses `npm` on purpose: it stands in for a stranger's project, which
+  is as likely to use npm as anything else.
 - Typecheck with **tsgo**, lint with **oxlint**, format with **oxfmt**, test with **vitest**.
-- `pnpm run check` runs those four plus the build, and must stay green — with no lint warnings,
-  not just no errors.
+- `pnpm run check` runs those four and must stay green — with no lint warnings, not just no
+  errors. There is no build to run.
 - `.nvmrc` tracks the current Node **Active LTS**. `engines` stays at the lowest version actually
   supported, which is lower.
 

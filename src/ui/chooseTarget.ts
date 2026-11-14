@@ -1,5 +1,4 @@
 import type { LaunchTarget } from '../claude/plan.ts';
-import type { Config } from '../config/schema.ts';
 import type { GitRunner } from '../git/git.ts';
 import { removeWorktrees } from '../git/removeWorktrees.ts';
 import { openRepository } from '../git/repository.ts';
@@ -11,7 +10,6 @@ import { pickTarget } from './picker.ts';
 
 export type ChooseTargetOptions = {
   repository: Repository;
-  config: Config;
   cwd: string;
   git: GitRunner;
   pick?: typeof pickTarget;
@@ -19,9 +17,11 @@ export type ChooseTargetOptions = {
 };
 
 export const chooseTarget = async (options: ChooseTargetOptions): Promise<LaunchTarget | undefined> => {
-  const { repository, config, cwd, git, pick = pickTarget, notices = [] } = options;
+  const { repository, cwd, git, pick = pickTarget, notices = [] } = options;
 
-  const choice = await pick({ repository, config, palette: createPalette(config.color), cwd, notices });
+  const palette = createPalette();
+
+  const choice = await pick({ repository, palette, cwd, notices });
 
   if (choice === undefined) {
     return undefined;
@@ -35,12 +35,7 @@ export const chooseTarget = async (options: ChooseTargetOptions): Promise<Launch
     return chooseTarget({ ...options, notices: [] });
   }
 
-  const failures = removeWorktrees({
-    git,
-    cwd,
-    paths: choice.paths,
-    force: config.worktree.forceRemove,
-  });
+  const failures = removeWorktrees({ git, cwd, paths: choice.paths });
 
   return chooseTarget({
     ...options,
